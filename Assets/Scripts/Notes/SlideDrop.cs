@@ -742,7 +742,7 @@ public class SlideDrop : NoteLongDrop, IFlasher
         spriteRenderer_star.color = Color.white;
         star_slide.transform.localScale = new Vector3(1.5f, 1.5f, 1.5f);
 
-        var process = MathF.Min((LastFor - GetRemainingTime()) / LastFor,1);
+        var process = MathF.Min((LastFor - GetRemainingTime()) / LastFor, 1);
         var indexProcess = (slidePositions.Count - 1) * process;
         var index = (int)indexProcess;
         var pos = indexProcess - index;
@@ -752,6 +752,10 @@ public class SlideDrop : NoteLongDrop, IFlasher
             switch (InputManager.Mode)
             {
                 case AutoPlayMode.Enable:
+                    if (smoothSlideAnime) HideBar(index + 1);
+                    DestroySelf();
+                    judgeQueue.Clear();
+                    return;
                 case AutoPlayMode.Random:
                     var barIndex = areaStep[(int)(process * (areaStep.Count - 1))];
                     HideBar(barIndex);
@@ -788,9 +792,12 @@ public class SlideDrop : NoteLongDrop, IFlasher
         switch(InputManager.Mode)
         {
             case AutoPlayMode.Enable:
-            case AutoPlayMode.Random:
-                var barIndex = areaStep[(int)(process * (areaStep.Count - 1))];
                 judgeQueue = judgeQueue.Skip((int)(process * (judgeQueue.Count - 1))).ToList();
+                if (smoothSlideAnime) HideBar(index + 1);
+                break;
+            case AutoPlayMode.Random:
+                judgeQueue = judgeQueue.Skip((int)(process * (judgeQueue.Count - 1))).ToList();
+                var barIndex = areaStep[(int)(process * (areaStep.Count - 1))];
                 HideBar(barIndex);
                 break;
         }

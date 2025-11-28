@@ -3,6 +3,7 @@ using Assets.Scripts.Types;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 #nullable enable
@@ -466,6 +467,7 @@ public class WifiDrop : NoteLongDrop,IFlasher
         var timing = timeProvider.AudioTime - time;
         var process = (LastFor - timing) / LastFor;
         process = 1f - process;
+        var pos = (slideBars.Count - 1) * process;
 
         if (process >= 1)
         {
@@ -478,6 +480,10 @@ public class WifiDrop : NoteLongDrop,IFlasher
             switch (InputManager.Mode)
             {
                 case AutoPlayMode.Enable:
+                    if (smoothSlideAnime) HideBar((int)pos + 1);
+                    DestroySelf();
+                    judgeQueues.Clear();
+                    return;
                 case AutoPlayMode.Random:
                     var barIndex = areaStep[(int)(process * (areaStep.Count - 1))];
                     HideBar(barIndex);
@@ -501,9 +507,12 @@ public class WifiDrop : NoteLongDrop,IFlasher
         switch (InputManager.Mode)
         {
             case AutoPlayMode.Enable:
-            case AutoPlayMode.Random:
-                var barIndex = areaStep[(int)(process * (areaStep.Count - 1))];
                 judgeQueues = judgeQueues.Skip((int)(process * (judgeQueues.Count - 1))).ToList();
+                if (smoothSlideAnime) HideBar((int)pos + 1);
+                break;
+            case AutoPlayMode.Random:
+                judgeQueues = judgeQueues.Skip((int)(process * (judgeQueues.Count - 1))).ToList();
+                var barIndex = areaStep[(int)(process * (areaStep.Count - 1))];
                 HideBar(barIndex);
                 break;
         }
