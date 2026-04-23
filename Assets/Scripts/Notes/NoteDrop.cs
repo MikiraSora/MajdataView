@@ -23,7 +23,7 @@ public class NoteDrop : MonoBehaviour
     protected bool isJudged = false;
     protected JudgeType judgeResult;
     protected ObjectCounter objectCounter;
-    
+
     /// <summary>
     /// 获取当前时刻距离正解帧的时间长度
     /// </summary>
@@ -33,12 +33,19 @@ public class NoteDrop : MonoBehaviour
     /// </returns>
     protected float GetJudgeTiming() => timeProvider.AudioTime - time;
     protected Vector3 getPositionFromDistance(float distance) => getPositionFromDistance(distance, startPosition);
-    protected Vector3 getPositionFromDistance(float distance,int position)
+    protected Vector3 getPositionFromDistance(float distance, int position)
     {
         return new Vector3(
             distance * Mathf.Cos((position * -2f + 5f) * 0.125f * Mathf.PI),
             distance * Mathf.Sin((position * -2f + 5f) * 0.125f * Mathf.PI));
     }
+
+    //变速相关
+    public int soflanGroup;
+    public float soflanTime;
+    protected float GetSoflanValue(float inputMsec) => SoflanManager.Instance.ConvertAudioTimeToY_PreviewMode(inputMsec, soflanGroup, speed);
+    protected float GetSoflanTiming() => (GetSoflanValue(timeProvider.AudioTime * 1000.0f) - soflanTime) / 1000.0f;
+    protected virtual bool IsEnableSoflan() => false;
 }
 
 public class NoteLongDrop : NoteDrop
@@ -58,7 +65,7 @@ public class NoteLongDrop : NoteDrop
     /// <returns>
     /// Hold剩余长度
     /// </returns>
-    protected float GetRemainingTime() => MathF.Max(LastFor - GetJudgeTiming(),0);
+    protected float GetRemainingTime() => MathF.Max(LastFor - GetJudgeTiming(), 0);
 
 
     protected virtual void PlayHoldEffect()
@@ -91,7 +98,7 @@ public class NoteLongDrop : NoteDrop
             default:
                 break;
         }
-        holdEffect.SetActive(true);        
+        holdEffect.SetActive(true);
     }
     protected virtual void StopHoldEffect()
     {

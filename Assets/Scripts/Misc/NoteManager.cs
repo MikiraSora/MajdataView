@@ -8,12 +8,19 @@ public class NoteManager : MonoBehaviour
     public Dictionary<GameObject, int> noteOrder = new();
     public Dictionary<int, int> noteIndex = new();
 
+    [SerializeField]
+    public string displayCurrentSoflanSpeedMap = "";
+
     public Dictionary<GameObject, int> touchOrder = new();
     public Dictionary<SensorType, int> touchIndex = new();
+    private AudioTimeProvider timeProvider;
+
     // Start is called before the first frame update
     void Start()
     {
         Application.targetFrameRate = 30;
+
+        timeProvider = GameObject.Find("AudioTimeProvider").GetComponent<AudioTimeProvider>();
     }
     public void Clear()
     {
@@ -21,8 +28,8 @@ public class NoteManager : MonoBehaviour
         noteOrder.Clear();
         touchOrder.Clear();
     }
-    public void AddNote(GameObject obj,int index) => noteOrder.Add(obj, index);
-    public void AddTouch(GameObject obj,int index) => touchOrder.Add(obj, index);
+    public void AddNote(GameObject obj, int index) => noteOrder.Add(obj, index);
+    public void AddTouch(GameObject obj, int index) => touchOrder.Add(obj, index);
     public void Refresh()
     {
         var count = transform.childCount;
@@ -44,7 +51,7 @@ public class NoteManager : MonoBehaviour
                 noteOrder.Add(star.gameObject, noteIndex[star.startPosition]++);
             else if (touch != null)
                 touchOrder.Add(touch.gameObject, touchIndex[touch.GetSensor()]++);
-            else if(touchHold != null)
+            else if (touchHold != null)
                 touchOrder.Add(touchHold.gameObject, touchIndex[SensorType.C]++);
 
             notes.Add(child.gameObject);
@@ -75,7 +82,7 @@ public class NoteManager : MonoBehaviour
         return index <= nowIndex;
     }
 
-    public bool CanJudge(GameObject obj,SensorType t)
+    public bool CanJudge(GameObject obj, SensorType t)
     {
         if (!touchOrder.ContainsKey(obj))
             return false;
@@ -87,6 +94,9 @@ public class NoteManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        
+        var currentTime = timeProvider.AudioTime * 1000;
+        displayCurrentSoflanSpeedMap = $"{currentTime:F4}ms\n";
+        foreach (var soflanGroup in SoflanManager.Instance.getSoflanListMap().Keys)
+            displayCurrentSoflanSpeedMap += $"[{soflanGroup}] = {SoflanManager.Instance.GetSoflanSpeedPoint_PreviewMode(currentTime, soflanGroup).Speed:F4}x {SoflanManager.Instance.ConvertAudioTimeToY_PreviewMode(currentTime, soflanGroup):F4}ms \n";
     }
 }

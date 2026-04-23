@@ -1,14 +1,19 @@
 ﻿using Assets.Scripts.Types;
 using System;
+using System.ComponentModel;
 using UnityEngine;
 #nullable enable
 namespace Assets.Scripts.Notes
 {
-    public class TapBase: NoteDrop
+    public class TapBase : NoteDrop
     {
         public bool isBreak;
         public bool isEX;
         bool isTriggered = false;
+
+        private float getJudgeTimingDisplay;
+        private float distanceDisplay;
+        public float getSoflanTimingDisplay;
 
         public Sprite tapSpr;
         public Sprite eachSpr;
@@ -32,6 +37,7 @@ namespace Assets.Scripts.Notes
         protected SpriteRenderer lineSpriteRender;
 
         protected SpriteRenderer spriteRenderer;
+
         protected void PreLoad()
         {
             var notes = GameObject.Find("Notes").transform;
@@ -47,7 +53,7 @@ namespace Assets.Scripts.Notes
             spriteRenderer.sortingOrder += noteSortOrder;
             exSpriteRender.sortingOrder += noteSortOrder;
 
-            
+
         }
         protected void FixedUpdate()
         {
@@ -66,7 +72,7 @@ namespace Assets.Scripts.Notes
             }
             else if (timing >= -0.01f)
             {
-                switch(InputManager.Mode)
+                switch (InputManager.Mode)
                 {
                     case AutoPlayMode.Enable:
                         judgeResult = JudgeType.Perfect;
@@ -89,11 +95,17 @@ namespace Assets.Scripts.Notes
         // Update is called once per frame
         protected virtual void Update()
         {
-            var timing = GetJudgeTiming();
-            var distance = timing * speed + 4.8f;
+            if (SoflanManager.Instance.containsSoflans())
+            {
+                Update_soflan();
+                return;
+            }
+
+            var timing = getJudgeTimingDisplay = GetJudgeTiming();
+            var distance = distanceDisplay = timing * speed + 4.8f;
             var destScale = distance * 0.4f + 0.51f;
 
-            switch(State)
+            switch (State)
             {
                 case NoteStatus.Initialized:
                     if (destScale >= 0f)
@@ -141,6 +153,50 @@ namespace Assets.Scripts.Notes
                 spriteRenderer.material.SetFloat("_Brightness", 0.95f + extra);
             }
         }
+
+        private void Update_soflan()
+        {
+            getJudgeTimingDisplay = GetJudgeTiming();
+
+            var timing = getSoflanTimingDisplay = GetSoflanTiming();
+            var distance = distanceDisplay = timing * speed + 4.8f;
+            var destScale = distance * 0.4f + 0.51f;
+
+            if (destScale >= 0f)
+                tapLine.transform.rotation = Quaternion.Euler(0, 0, -22.5f + -45f * (startPosition - 1));
+            else
+                transform.localScale = new Vector3(0, 0);
+
+            if (destScale > 0.3f)
+                tapLine.SetActive(true);
+            else
+                tapLine.SetActive(false);
+
+            if (distance < 1.225f)
+            {
+                var limitedDestScale = Mathf.Max(0, destScale);
+                transform.localScale = new Vector3(limitedDestScale, limitedDestScale);
+                transform.position = getPositionFromDistance(1.225f);
+                var lineScale = Mathf.Abs(1.225f / 4.8f);
+                tapLine.transform.localScale = new Vector3(lineScale, lineScale, 1f);
+            }
+            else
+            {
+                transform.position = getPositionFromDistance(distance);
+                transform.localScale = new Vector3(1f, 1f);
+                var lineScale = Mathf.Abs(distance / 4.8f);
+                tapLine.transform.localScale = new Vector3(lineScale, lineScale, 1f);
+            }
+
+            spriteRenderer.forceRenderingOff = false;
+            if (isEX) exSpriteRender.forceRenderingOff = false;
+            if (isBreak)
+            {
+                var extra = Math.Max(Mathf.Sin(timeProvider.GetFrame() * 0.17f) * 0.5f, 0);
+                spriteRenderer.material.SetFloat("_Brightness", 0.95f + extra);
+            }
+        }
+
         protected void Check(object sender, InputEventArgs arg)
         {
             if (arg.Type != sensor.Type)
@@ -219,7 +275,7 @@ namespace Assets.Scripts.Notes
             effectManager.PlayEffect(startPosition, isBreak, judgeResult);
             effectManager.PlayFastLate(startPosition, judgeResult);
             objectCounter.NextNote(startPosition);
-            objectCounter.ReportResult(this, judgeResult,isBreak);
+            objectCounter.ReportResult(this, judgeResult, isBreak);
             inputManager.UnbindArea(Check, sensorPos);
         }
     }
