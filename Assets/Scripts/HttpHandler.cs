@@ -62,6 +62,27 @@ public class HttpHandler : MonoBehaviour
                     //GameObject.Find("Notes").GetComponent<NoteManager>().Refresh();
                 }
                 break;
+            case EditorControlMethod.SeekTo:
+                {
+                    HttpHandler.IsReloding = true;
+                    var notesGameObject = GameObject.Find("Notes");
+                    notesGameObject.GetComponent<NoteManager>().Clear();
+                    for (int i = notesGameObject.transform.childCount - 1; i >= 0; i--)
+                        GameObject.Destroy(notesGameObject.transform.GetChild(i).gameObject);
+
+                    timeProvider.SetStartTime(data.startAt, data.startTime, data.audioSpeed);
+                    loader.noteSpeed = (float)(107.25 / (71.4184491 * Mathf.Pow(data.noteSpeed + 0.9975f, -0.985558604f)));
+                    loader.touchSpeed = data.touchSpeed;
+                    loader.smoothSlideAnime = data.smoothSlideAnime;
+                    objectCounter.ComboSetActive(data.comboStatusType);
+                    loader.LoadJson(File.ReadAllText(data.jsonPath), data.startTime);
+                    GameObject.Find("Notes").GetComponent<PlayAllPerfect>().enabled = false;
+                    GameObject.Find("MultTouchHandler").GetComponent<MultTouchHandler>().clearSlots();
+
+                    timeProvider.isStart = false;
+                    bgManager.PauseVideo();
+                }
+                break;
             case EditorControlMethod.OpStart:
                 {
                     timeProvider.SetStartTime(data.startAt, data.startTime, data.audioSpeed);

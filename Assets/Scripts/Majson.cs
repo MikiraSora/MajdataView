@@ -54,7 +54,8 @@ internal enum EditorControlMethod
     OpStart,
     Pause,
     Continue,
-    Record
+    Record,
+    SeekTo
 }
 
 public enum EditorPlayMethod

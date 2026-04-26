@@ -33,7 +33,7 @@ public class NoteManager : MonoBehaviour
     public void Refresh()
     {
         var count = transform.childCount;
-        ResetIndex();
+        Clear();
         for (int i = 0; i < count; i++)
         {
             var child = transform.GetChild(i);
