@@ -544,12 +544,22 @@ public class ObjectCounter : MonoBehaviour
     }
     void UpdateJudgeResult()
     {
-        var fast = totalJudgedCount.Where(x => x.Key > JudgeType.Perfect && x.Key != JudgeType.Miss)
-                                   .Select(x => x.Value)
-                                   .Sum();
-        var late = totalJudgedCount.Where(x => x.Key < JudgeType.Perfect && x.Key != JudgeType.Miss)
-                                   .Select(x => x.Value)
-                                   .Sum();
+        // totalJudgedCount / judgeResultCount 在 Start() 完成前(或谱面未加载)可能为 null,
+        // 直接跳过避免 ArgumentNullException;同时用 foreach 替代 LINQ,消除每帧闭包/迭代器分配。
+        if (totalJudgedCount == null || judgeResultCount == null)
+            return;
+
+        var fast = 0;
+        var late = 0;
+        foreach (var result in totalJudgedCount)
+        {
+            if (result.Key == JudgeType.Miss)
+                continue;
+            if (result.Key > JudgeType.Perfect)
+                fast += result.Value;
+            else if (result.Key < JudgeType.Perfect)
+                late += result.Value;
+        }
         judgeResultCount.text = $"{cPerfectCount}\n{perfectCount}\n{greatCount}\n{goodCount}\n{missCount}\n\n{fast}\n{late}";
     }
 
