@@ -1,0 +1,3 @@
+[submodule "Assets/Plugins/SimpleSoflanFramework"]
+	path = Assets/Plugins/SimpleSoflanFramework
+	url = https://github.com/NyagekiFumenProject/SimpleSoflanFramework
