@@ -22,6 +22,16 @@ internal class SoflanManager
     private bool containSoflans = false;
     private Dictionary<int, int> registerNoteIndexToSoflanGroupMap = new();
 
+    // 帧内记忆化:同一帧内所有音符读取的 AudioTime 相同,且 ConvertAudioTimeToY_PreviewMode
+    // 仅依赖 (soflanGroup, msec)(speed 参数被忽略,固定 scale=1)。按 soflanGroup 缓存最近
+    // 一次 (msec, result),避免每个音符每帧重复分配闭包/TGrid。详见 docs/内存与GC卡顿诊断.md。
+    private struct YPreviewCacheEntry
+    {
+        public float msec;
+        public float result;
+    }
+    private readonly Dictionary<int, YPreviewCacheEntry> _yPreviewCache = new();
+
     private void log(string message)
     {
         //todo
@@ -37,6 +47,7 @@ internal class SoflanManager
         containSoflans = false;
 
         registerNoteIndexToSoflanGroupMap.Clear();
+        _yPreviewCache.Clear();
 
         log("SoflanManager cleared");
     }
@@ -147,7 +158,14 @@ internal class SoflanManager
 
     public float ConvertAudioTimeToY_PreviewMode(float msec, int soflanGroup, float speed = 1)
     {
-        return (float)TGridCalculator.ConvertAudioTimeToY_PreviewMode(TimeSpan.FromMilliseconds(msec), getSoflanList(soflanGroup), bpmList, 1);
+        // speed 参数在本实现中被忽略(下方固定 scale=1),因此缓存键只需 (soflanGroup, msec)。
+        // 同一帧内所有音符的 msec 相同(同一 AudioTime),故每帧每 soflanGroup 仅计算一次。
+        if (_yPreviewCache.TryGetValue(soflanGroup, out var cached) && cached.msec == msec)
+            return cached.result;
+
+        var result = (float)TGridCalculator.ConvertAudioTimeToY_PreviewMode(TimeSpan.FromMilliseconds(msec), getSoflanList(soflanGroup), bpmList, 1);
+        _yPreviewCache[soflanGroup] = new YPreviewCacheEntry { msec = msec, result = result };
+        return result;
     }
 
     public SoflanList.SoflanPoint GetSoflanSpeedPoint_PreviewMode(float msec, int soflanGroup, float speed = 1)
