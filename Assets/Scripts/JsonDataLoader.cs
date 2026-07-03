@@ -1123,6 +1123,8 @@ public class JsonDataLoader : MonoBehaviour
         NDCompo.time = (float)timing.Timing;
         NDCompo.startPosition = note.StartPosition;
         NDCompo.speed = noteSpeed;
+        NDCompo.soflanGroup = timing.SoflanGroup;
+        NDCompo.soflanTime = (float)SoflanManager.Instance.ConvertAudioTimeToY_PreviewMode(NDCompo.time * 1000, timing.SoflanGroup, noteSpeed);
 
         WifiCompo.isJustR = detectJustType(note.RawContent, out endPos);
         WifiCompo.endPosition = endPos;
@@ -1222,6 +1224,8 @@ public class JsonDataLoader : MonoBehaviour
         NDCompo.time = (float)timing.Timing;
         NDCompo.startPosition = note.StartPosition;
         NDCompo.speed = noteSpeed;
+        NDCompo.soflanGroup = timing.SoflanGroup;
+        NDCompo.soflanTime = (float)SoflanManager.Instance.ConvertAudioTimeToY_PreviewMode(NDCompo.time * 1000, timing.SoflanGroup, noteSpeed);
 
 
         SliCompo.isMirror = isMirror;

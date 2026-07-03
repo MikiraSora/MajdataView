@@ -82,6 +82,12 @@ public class StarDrop : TapBase
     // Update is called once per frame
     protected override void Update()
     {
+        if (SoflanManager.Instance.containsSoflans())
+        {
+            Update_soflan();
+            return;
+        }
+
         var songSpeed = timeProvider.CurrentSpeed;
         var judgeTiming = GetJudgeTiming();
         var distance = judgeTiming * speed + 4.8f;
@@ -155,6 +161,74 @@ public class StarDrop : TapBase
         else if (isFakeStarRotate)
             transform.Rotate(0f, 0f, 400f * Time.deltaTime);  
     }
+    // soflan(变速)谱面下的定位:镜像 TapBase.Update_soflan,每帧按 GetSoflanTiming() 重算,
+    // 不走 State 状态机(变速可能反向)。保留 Star 特有逻辑:isNoHead 守卫、slide 激活与自销毁、旋转。
+    private void Update_soflan()
+    {
+        var songSpeed = timeProvider.CurrentSpeed;
+        var timing = GetSoflanTiming();
+        var distance = timing * speed + 4.8f;
+        var destScale = distance * 0.4f + 0.51f;
+
+        if (destScale >= 0f)
+        {
+            if (!isNoHead)
+                tapLine.transform.rotation = Quaternion.Euler(0, 0, -22.5f + -45f * (startPosition - 1));
+        }
+        else
+            transform.localScale = new Vector3(0, 0);
+
+        if (destScale > 0.3f)
+        {
+            if (!isNoHead)
+                tapLine.SetActive(true);
+        }
+        else
+            tapLine.SetActive(false);
+
+        if (distance < 1.225f)
+        {
+            var limitedDestScale = Mathf.Max(0, destScale);
+            transform.localScale = new Vector3(limitedDestScale, limitedDestScale);
+            transform.position = getPositionFromDistance(1.225f);
+            var lineScale = Mathf.Abs(1.225f / 4.8f);
+            tapLine.transform.localScale = new Vector3(lineScale, lineScale, 1f);
+        }
+        else
+        {
+            if (!isFakeStar && !slide.activeSelf)
+            {
+                slide.SetActive(true);
+                if (isNoHead)
+                {
+                    Destroy(tapLine);
+                    Destroy(gameObject);
+                    return;
+                }
+            }
+            transform.position = getPositionFromDistance(distance);
+            transform.localScale = new Vector3(1f, 1f);
+            var lineScale = Mathf.Abs(distance / 4.8f);
+            tapLine.transform.localScale = new Vector3(lineScale, lineScale, 1f);
+        }
+
+        if (isNoHead)
+        {
+            spriteRenderer.forceRenderingOff = true;
+            if (isEX) exSpriteRender.forceRenderingOff = true;
+        }
+        else
+        {
+            spriteRenderer.forceRenderingOff = false;
+            if (isEX) exSpriteRender.forceRenderingOff = false;
+        }
+
+        if (timeProvider.isStart && !isFakeStar)
+            transform.Rotate(0f, 0f, -180f * Time.deltaTime * songSpeed / rotateSpeed);
+        else if (isFakeStarRotate)
+            transform.Rotate(0f, 0f, 400f * Time.deltaTime);
+    }
+
     protected override void OnDestroy()
     {
         if(!isNoHead || isFakeStar)
