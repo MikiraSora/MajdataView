@@ -5,6 +5,11 @@
 [Bb]uilds/
 Assets/AssetStoreTools*
 
+.claude/
+.codex/
+.agents/
+Assets/Plugins/NuGet/
+
 # Visual Studio cache directory
 .vs/
 
