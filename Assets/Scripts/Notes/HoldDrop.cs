@@ -40,6 +40,9 @@ public class HoldDrop : NoteLongDrop
     private SpriteRenderer lineSpriteRender;
 
     private SpriteRenderer spriteRenderer;
+    private float soflanEndTime;
+
+    private float GetSoflanEndTiming() => (GetSoflanValue(timeProvider.AudioTime * 1000.0f) - soflanEndTime) / 1000.0f;
 
 
     private void Start()
@@ -58,6 +61,8 @@ public class HoldDrop : NoteLongDrop
 
         timeProvider = GameObject.Find("AudioTimeProvider").GetComponent<AudioTimeProvider>();
         spriteRenderer = GetComponent<SpriteRenderer>();
+        if (SoflanManager.Instance.containsSoflans())
+            soflanEndTime = GetSoflanValue((time + LastFor) * 1000.0f);
 
         holdEndRender = transform.GetChild(1).GetComponent<SpriteRenderer>();
 
@@ -247,6 +252,12 @@ public class HoldDrop : NoteLongDrop
     // Update is called once per frame
     private void Update()
     {
+        if (SoflanManager.Instance.containsSoflans())
+        {
+            Update_soflan();
+            return;
+        }
+
         var timing = GetJudgeTiming();
         var distance = timing * speed + 4.8f;
         var destScale = distance * 0.4f + 0.51f;
@@ -330,6 +341,97 @@ public class HoldDrop : NoteLongDrop
         tapLine.transform.localScale = new Vector3(lineScale, lineScale, 1f);
         exSpriteRender.size = spriteRenderer.size;
     }
+
+    private void Update_soflan()
+    {
+        var timing = GetSoflanTiming();
+        var distance = timing * speed + 4.8f;
+        var destScale = distance * 0.4f + 0.51f;
+
+        if (destScale < 0f)
+            transform.localScale = new Vector3(0f, 0f);
+
+        spriteRenderer.forceRenderingOff = false;
+        if (isEX) exSpriteRender.forceRenderingOff = false;
+
+        spriteRenderer.size = new Vector2(1.22f, 1.4f);
+        holdEndRender.enabled = false;
+
+        var holdTime = GetSoflanEndTiming();
+        var holdDistance = holdTime * speed + 4.8f;
+        if (holdTime >= 0 ||
+            holdTime >= 0 && LastFor <= 0.15f)
+        {
+            tapLine.transform.localScale = new Vector3(1f, 1f, 1f);
+            transform.position = getPositionFromDistance(4.8f);
+            return;
+        }
+
+
+        transform.rotation = Quaternion.Euler(0, 0, -22.5f + -45f * (startPosition - 1));
+        tapLine.transform.rotation = transform.rotation;
+        holdEffect.transform.position = getPositionFromDistance(4.8f);
+
+        if (isBreak &&
+            !holdAnimStart &&
+            !isJudged)
+        {
+            var extra = Math.Max(Mathf.Sin(timeProvider.GetFrame() * 0.17f) * 0.5f, 0);
+            spriteRenderer.material.SetFloat("_Brightness", 0.95f + extra);
+        }
+
+
+        if (destScale > 0.3f)
+            tapLine.SetActive(true);
+        else
+            tapLine.SetActive(false);
+
+        if (distance < 1.225f)
+        {
+            var limitedDestScale = Mathf.Max(0, destScale);
+            transform.localScale = new Vector3(limitedDestScale, limitedDestScale);
+            spriteRenderer.size = new Vector2(1.22f, 1.42f);
+            distance = 1.225f;
+            var pos = getPositionFromDistance(distance);
+            transform.position = pos;
+        }
+        else
+        {
+            if (holdDistance < 1.225f && distance >= 4.8f) // 头到达 尾未出现
+            {
+                holdDistance = 1.225f;
+                distance = 4.8f;
+            }
+            else if (holdDistance < 1.225f && distance < 4.8f) // 头未到达 尾未出现
+            {
+                holdDistance = 1.225f;
+            }
+            else if (holdDistance >= 1.225f && distance >= 4.8f) // 头到达 尾出现
+            {
+                distance = 4.8f;
+
+                holdEndRender.enabled = true;
+            }
+            else if (holdDistance >= 1.225f && distance < 4.8f) // 头未到达 尾出现
+            {
+                holdEndRender.enabled = true;
+            }
+
+            var dis = (distance + holdDistance) / 2;
+            transform.position = getPositionFromDistance(dis); //0.325
+            var size = Mathf.Abs(distance - holdDistance) + 1.4f;
+            spriteRenderer.size = new Vector2(1.22f, size);
+            var endOffset = size / 2 - 0.6825f;
+            holdEndRender.transform.localPosition = new Vector3(0f, holdDistance <= distance ? -endOffset : endOffset);
+            transform.localScale = new Vector3(1f, 1f);
+        }
+
+        var lineScale = Mathf.Abs(distance / 4.8f);
+        lineScale = lineScale >= 1f ? 1f : lineScale;
+        tapLine.transform.localScale = new Vector3(lineScale, lineScale, 1f);
+        exSpriteRender.size = spriteRenderer.size;
+    }
+
     private void OnDestroy()
     {
         if (HttpHandler.IsReloding)
