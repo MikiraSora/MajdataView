@@ -8,9 +8,6 @@ public class NoteManager : MonoBehaviour
     public Dictionary<GameObject, int> noteOrder = new();
     public Dictionary<int, int> noteIndex = new();
 
-    [SerializeField]
-    public string displayCurrentSoflanSpeedMap = "";
-
     public Dictionary<GameObject, int> touchOrder = new();
     public Dictionary<SensorType, int> touchIndex = new();
     private AudioTimeProvider timeProvider;
@@ -94,9 +91,5 @@ public class NoteManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        var currentTime = timeProvider.AudioTime * 1000;
-        displayCurrentSoflanSpeedMap = $"{currentTime:F4}ms\n";
-        foreach (var soflanGroup in SoflanManager.Instance.getSoflanListMap().Keys)
-            displayCurrentSoflanSpeedMap += $"[{soflanGroup}] = {SoflanManager.Instance.GetSoflanSpeedPoint_PreviewMode(currentTime, soflanGroup).Speed:F4}x {SoflanManager.Instance.ConvertAudioTimeToY_PreviewMode(currentTime, soflanGroup):F4}ms \n";
     }
 }
