@@ -15,6 +15,8 @@ namespace Assets.Scripts.Notes
         private float distanceDisplay;
         public float getSoflanTimingDisplay;
         public float noteSpeedValue = 600f;
+        public bool isFixedSoflan;
+        public float fixedSoflanSpeed = 600f;
 
         public Sprite tapSpr;
         public Sprite eachSpr;
@@ -56,33 +58,73 @@ namespace Assets.Scripts.Notes
 
 
         }
+        protected bool IsFixedSoflanEnabled()
+        {
+            return isFixedSoflan && fixedSoflanSpeed > 0f;
+        }
+        protected float GetSoflanNoteSpeedValue()
+        {
+            return IsFixedSoflanEnabled() ? fixedSoflanSpeed : noteSpeedValue;
+        }
         protected float GetMaiBugAdjustMSec()
         {
-            var speedRatio = noteSpeedValue / 150f;
+            return GetMaiBugAdjustMSec(noteSpeedValue);
+        }
+        protected float GetMaiBugAdjustMSec(float speedValue)
+        {
+            var speedRatio = speedValue / 150f;
             return (speedRatio - 1f) * (-0.5f / speedRatio) * 1.6f * 1000f / 60f;
         }
         protected float GetDefaultMsec()
         {
-            return 240000f / noteSpeedValue;
+            return GetDefaultMsec(noteSpeedValue);
+        }
+        protected float GetDefaultMsec(float speedValue)
+        {
+            return 240000f / speedValue;
         }
         protected float GetMoveStartTime()
         {
-            return GetDefaultMsec() - GetMaiBugAdjustMSec();
+            return GetMoveStartTime(noteSpeedValue);
+        }
+        protected float GetMoveStartTime(float speedValue)
+        {
+            return GetDefaultMsec(speedValue) - GetMaiBugAdjustMSec(speedValue);
         }
         protected float GetScaleStartTime()
         {
-            return 2f * GetDefaultMsec() - GetMaiBugAdjustMSec();
+            return GetScaleStartTime(noteSpeedValue);
+        }
+        protected float GetScaleStartTime(float speedValue)
+        {
+            return 2f * GetDefaultMsec(speedValue) - GetMaiBugAdjustMSec(speedValue);
         }
         protected float GetTapDistance(float timing)
         {
-            var moveStartTime = GetMoveStartTime();
+            return GetTapDistance(timing, noteSpeedValue);
+        }
+        protected float GetTapDistance(float timing, float speedValue)
+        {
+            var moveStartTime = GetMoveStartTime(speedValue);
             var progress = (moveStartTime + timing * 1000f) / (2f * moveStartTime);
             var outsideDistance = 4.8f + (4.8f - 1.225f);
             return Mathf.Lerp(1.225f, outsideDistance, progress);
         }
         protected float GetTapScale(float timing)
         {
-            return (GetScaleStartTime() - MathF.Abs(timing * 1000f)) / GetDefaultMsec();
+            return GetTapScale(timing, noteSpeedValue);
+        }
+        protected float GetTapScale(float timing, float speedValue)
+        {
+            return (GetScaleStartTime(speedValue) - MathF.Abs(timing * 1000f)) / GetDefaultMsec(speedValue);
+        }
+        protected float GetSoflanTapDistance(float timing)
+        {
+            return GetTapDistance(timing, GetSoflanNoteSpeedValue());
+        }
+        protected float GetSoflanTapScale(float timing)
+        {
+            return GetTapScale(timing, GetSoflanNoteSpeedValue());
         }
         protected void FixedUpdate()
         {
@@ -188,8 +230,8 @@ namespace Assets.Scripts.Notes
             getJudgeTimingDisplay = GetJudgeTiming();
 
             var timing = getSoflanTimingDisplay = GetSoflanTiming();
-            var distance = distanceDisplay = GetTapDistance(timing);
-            var destScale = GetTapScale(timing);
+            var distance = distanceDisplay = GetSoflanTapDistance(timing);
+            var destScale = GetSoflanTapScale(timing);
 
             if (destScale >= 0f)
                 tapLine.transform.rotation = Quaternion.Euler(0, 0, -22.5f + -45f * (startPosition - 1));

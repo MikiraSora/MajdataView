@@ -17,6 +17,21 @@ public class StarDrop : TapBase
     public Sprite exSpr_Double;
 
     public GameObject slide;
+    private bool TryActivateSlide(bool shouldActivate)
+    {
+        if (!shouldActivate || isFakeStar || slide.activeSelf)
+            return false;
+
+        slide.SetActive(true);
+        if (isNoHead)
+        {
+            Destroy(tapLine);
+            Destroy(gameObject);
+            return true;
+        }
+
+        return false;
+    }
     private void Start()
     {
         PreLoad();
@@ -120,16 +135,9 @@ public class StarDrop : TapBase
                     }
                     else
                     {
-                        if (!isFakeStar && !slide.activeSelf)
-                        {
-                            slide.SetActive(true);
-                            if(isNoHead)
-                            {
-                                Destroy(tapLine);
-                                Destroy(gameObject);
-                                return;
-                            }
-                        }
+                        if (TryActivateSlide(true))
+                            return;
+
                         State = NoteStatus.Running;
                         goto case NoteStatus.Running;
                     }
@@ -167,8 +175,9 @@ public class StarDrop : TapBase
     {
         var songSpeed = timeProvider.CurrentSpeed;
         var timing = GetSoflanTiming();
-        var distance = GetTapDistance(timing);
-        var destScale = GetTapScale(timing);
+        var distance = GetSoflanTapDistance(timing);
+        var destScale = GetSoflanTapScale(timing);
+        var shouldActivateSlide = GetTapScale(GetJudgeTiming()) >= 1f;
 
         if (destScale >= 0f)
         {
@@ -186,6 +195,9 @@ public class StarDrop : TapBase
         else
             tapLine.SetActive(false);
 
+        if (TryActivateSlide(shouldActivateSlide))
+            return;
+
         if (destScale < 1f)
         {
             var limitedDestScale = Mathf.Max(0, destScale);
@@ -196,16 +208,6 @@ public class StarDrop : TapBase
         }
         else
         {
-            if (!isFakeStar && !slide.activeSelf)
-            {
-                slide.SetActive(true);
-                if (isNoHead)
-                {
-                    Destroy(tapLine);
-                    Destroy(gameObject);
-                    return;
-                }
-            }
             transform.position = getPositionFromDistance(distance);
             transform.localScale = new Vector3(1f, 1f);
             var lineScale = Mathf.Abs(distance / 4.8f);

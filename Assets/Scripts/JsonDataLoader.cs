@@ -45,6 +45,11 @@ public class JsonDataLoader : MonoBehaviour
         noteSpeedValue = (editorNoteSpeed + 1f) * 100f;
         noteSpeed = (float)(107.25 / (71.4184491 * Mathf.Pow(editorNoteSpeed + 0.9975f, -0.985558604f)));
     }
+    private void ApplyFixedSoflan(TapBase noteDrop, SimaiNote note)
+    {
+        noteDrop.isFixedSoflan = note.IsFixedSoflan;
+        noteDrop.fixedSoflanSpeed = note.FixedSoflanSpeed;
+    }
     Coroutine noteParserTask = null;
     Dictionary<int, int> noteIndex = new();
     Dictionary<SensorType, int> touchIndex = new();
@@ -579,6 +584,7 @@ public class JsonDataLoader : MonoBehaviour
                         NDCompo.startPosition = note.StartPosition;
                         NDCompo.speed = noteSpeed;
                         NDCompo.noteSpeedValue = noteSpeedValue;
+                        ApplyFixedSoflan(NDCompo, note);
                         NDCompo.soflanGroup = timing.SoflanGroup;
                         NDCompo.soflanTime = (float)SoflanManager.Instance.ConvertAudioTimeToY_PreviewMode(NDCompo.time * 1000, timing.SoflanGroup, noteSpeed);
                     }
@@ -1132,6 +1138,7 @@ public class JsonDataLoader : MonoBehaviour
         NDCompo.startPosition = note.StartPosition;
         NDCompo.speed = noteSpeed;
         NDCompo.noteSpeedValue = noteSpeedValue;
+        ApplyFixedSoflan(NDCompo, note);
         NDCompo.soflanGroup = timing.SoflanGroup;
         NDCompo.soflanTime = (float)SoflanManager.Instance.ConvertAudioTimeToY_PreviewMode(NDCompo.time * 1000, timing.SoflanGroup, noteSpeed);
 
@@ -1234,6 +1241,7 @@ public class JsonDataLoader : MonoBehaviour
         NDCompo.startPosition = note.StartPosition;
         NDCompo.speed = noteSpeed;
         NDCompo.noteSpeedValue = noteSpeedValue;
+        ApplyFixedSoflan(NDCompo, note);
         NDCompo.soflanGroup = timing.SoflanGroup;
         NDCompo.soflanTime = (float)SoflanManager.Instance.ConvertAudioTimeToY_PreviewMode(NDCompo.time * 1000, timing.SoflanGroup, noteSpeed);
 
