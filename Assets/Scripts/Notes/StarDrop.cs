@@ -90,8 +90,8 @@ public class StarDrop : TapBase
 
         var songSpeed = timeProvider.CurrentSpeed;
         var judgeTiming = GetJudgeTiming();
-        var distance = judgeTiming * speed + 4.8f;
-        var destScale = distance * 0.4f + 0.51f;
+        var distance = GetTapDistance(judgeTiming);
+        var destScale = GetTapScale(judgeTiming);
 
         switch (State)
         {
@@ -111,7 +111,7 @@ public class StarDrop : TapBase
                 {
                     if (destScale > 0.3f && !isNoHead)
                         tapLine.SetActive(true);
-                    if (distance < 1.225f)
+                    if (destScale < 1f)
                     {
                         transform.localScale = new Vector3(destScale, destScale);
                         transform.position = getPositionFromDistance(1.225f);
@@ -167,8 +167,8 @@ public class StarDrop : TapBase
     {
         var songSpeed = timeProvider.CurrentSpeed;
         var timing = GetSoflanTiming();
-        var distance = timing * speed + 4.8f;
-        var destScale = distance * 0.4f + 0.51f;
+        var distance = GetTapDistance(timing);
+        var destScale = GetTapScale(timing);
 
         if (destScale >= 0f)
         {
@@ -186,7 +186,7 @@ public class StarDrop : TapBase
         else
             tapLine.SetActive(false);
 
-        if (distance < 1.225f)
+        if (destScale < 1f)
         {
             var limitedDestScale = Mathf.Max(0, destScale);
             transform.localScale = new Vector3(limitedDestScale, limitedDestScale);

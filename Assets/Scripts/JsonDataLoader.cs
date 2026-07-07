@@ -15,6 +15,7 @@ using MajSimai;
 public class JsonDataLoader : MonoBehaviour
 {
     public float noteSpeed = 7f;
+    public float noteSpeedValue = 600f;
     public float touchSpeed = 7.5f;
     public bool smoothSlideAnime = false;
     public Sprite starEach;
@@ -38,6 +39,12 @@ public class JsonDataLoader : MonoBehaviour
     Task<Majson> jsonLoaderTask = null;
     Majson loadedData = null;
     float ignoreOffset = 0;
+
+    public void SetNoteSpeed(float editorNoteSpeed)
+    {
+        noteSpeedValue = (editorNoteSpeed + 1f) * 100f;
+        noteSpeed = (float)(107.25 / (71.4184491 * Mathf.Pow(editorNoteSpeed + 0.9975f, -0.985558604f)));
+    }
     Coroutine noteParserTask = null;
     Dictionary<int, int> noteIndex = new();
     Dictionary<SensorType, int> touchIndex = new();
@@ -571,6 +578,7 @@ public class JsonDataLoader : MonoBehaviour
                         NDCompo.time = (float)timing.Timing;
                         NDCompo.startPosition = note.StartPosition;
                         NDCompo.speed = noteSpeed;
+                        NDCompo.noteSpeedValue = noteSpeedValue;
                         NDCompo.soflanGroup = timing.SoflanGroup;
                         NDCompo.soflanTime = (float)SoflanManager.Instance.ConvertAudioTimeToY_PreviewMode(NDCompo.time * 1000, timing.SoflanGroup, noteSpeed);
                     }
@@ -1123,6 +1131,7 @@ public class JsonDataLoader : MonoBehaviour
         NDCompo.time = (float)timing.Timing;
         NDCompo.startPosition = note.StartPosition;
         NDCompo.speed = noteSpeed;
+        NDCompo.noteSpeedValue = noteSpeedValue;
         NDCompo.soflanGroup = timing.SoflanGroup;
         NDCompo.soflanTime = (float)SoflanManager.Instance.ConvertAudioTimeToY_PreviewMode(NDCompo.time * 1000, timing.SoflanGroup, noteSpeed);
 
@@ -1224,6 +1233,7 @@ public class JsonDataLoader : MonoBehaviour
         NDCompo.time = (float)timing.Timing;
         NDCompo.startPosition = note.StartPosition;
         NDCompo.speed = noteSpeed;
+        NDCompo.noteSpeedValue = noteSpeedValue;
         NDCompo.soflanGroup = timing.SoflanGroup;
         NDCompo.soflanTime = (float)SoflanManager.Instance.ConvertAudioTimeToY_PreviewMode(NDCompo.time * 1000, timing.SoflanGroup, noteSpeed);
 

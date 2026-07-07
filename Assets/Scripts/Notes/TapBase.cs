@@ -14,6 +14,7 @@ namespace Assets.Scripts.Notes
         private float getJudgeTimingDisplay;
         private float distanceDisplay;
         public float getSoflanTimingDisplay;
+        public float noteSpeedValue = 600f;
 
         public Sprite tapSpr;
         public Sprite eachSpr;
@@ -54,6 +55,34 @@ namespace Assets.Scripts.Notes
             exSpriteRender.sortingOrder += noteSortOrder;
 
 
+        }
+        protected float GetMaiBugAdjustMSec()
+        {
+            var speedRatio = noteSpeedValue / 150f;
+            return (speedRatio - 1f) * (-0.5f / speedRatio) * 1.6f * 1000f / 60f;
+        }
+        protected float GetDefaultMsec()
+        {
+            return 240000f / noteSpeedValue;
+        }
+        protected float GetMoveStartTime()
+        {
+            return GetDefaultMsec() - GetMaiBugAdjustMSec();
+        }
+        protected float GetScaleStartTime()
+        {
+            return 2f * GetDefaultMsec() - GetMaiBugAdjustMSec();
+        }
+        protected float GetTapDistance(float timing)
+        {
+            var moveStartTime = GetMoveStartTime();
+            var progress = (moveStartTime + timing * 1000f) / (2f * moveStartTime);
+            var outsideDistance = 4.8f + (4.8f - 1.225f);
+            return Mathf.Lerp(1.225f, outsideDistance, progress);
+        }
+        protected float GetTapScale(float timing)
+        {
+            return (GetScaleStartTime() - MathF.Abs(timing * 1000f)) / GetDefaultMsec();
         }
         protected void FixedUpdate()
         {
@@ -102,8 +131,8 @@ namespace Assets.Scripts.Notes
             }
 
             var timing = getJudgeTimingDisplay = GetJudgeTiming();
-            var distance = distanceDisplay = timing * speed + 4.8f;
-            var destScale = distance * 0.4f + 0.51f;
+            var distance = distanceDisplay = GetTapDistance(timing);
+            var destScale = GetTapScale(timing);
 
             switch (State)
             {
@@ -121,7 +150,7 @@ namespace Assets.Scripts.Notes
                     {
                         if (destScale > 0.3f)
                             tapLine.SetActive(true);
-                        if (distance < 1.225f)
+                        if (destScale < 1f)
                         {
                             transform.localScale = new Vector3(destScale, destScale);
                             transform.position = getPositionFromDistance(1.225f);
@@ -159,8 +188,8 @@ namespace Assets.Scripts.Notes
             getJudgeTimingDisplay = GetJudgeTiming();
 
             var timing = getSoflanTimingDisplay = GetSoflanTiming();
-            var distance = distanceDisplay = timing * speed + 4.8f;
-            var destScale = distance * 0.4f + 0.51f;
+            var distance = distanceDisplay = GetTapDistance(timing);
+            var destScale = GetTapScale(timing);
 
             if (destScale >= 0f)
                 tapLine.transform.rotation = Quaternion.Euler(0, 0, -22.5f + -45f * (startPosition - 1));
@@ -172,7 +201,7 @@ namespace Assets.Scripts.Notes
             else
                 tapLine.SetActive(false);
 
-            if (distance < 1.225f)
+            if (destScale < 1f)
             {
                 var limitedDestScale = Mathf.Max(0, destScale);
                 transform.localScale = new Vector3(limitedDestScale, limitedDestScale);

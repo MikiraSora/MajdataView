@@ -49,7 +49,7 @@ public class HttpHandler : MonoBehaviour
             case EditorControlMethod.Start:
                 {
                     timeProvider.SetStartTime(data.startAt, data.startTime, data.audioSpeed);
-                    loader.noteSpeed = (float)(107.25 / (71.4184491 * Mathf.Pow(data.noteSpeed + 0.9975f, -0.985558604f)));
+                    loader.SetNoteSpeed(data.noteSpeed);
                     loader.touchSpeed = data.touchSpeed;
                     loader.smoothSlideAnime = data.smoothSlideAnime;
                     objectCounter.ComboSetActive(data.comboStatusType);
@@ -71,7 +71,7 @@ public class HttpHandler : MonoBehaviour
                         GameObject.Destroy(notesGameObject.transform.GetChild(i).gameObject);
 
                     timeProvider.SetStartTime(data.startAt, data.startTime, data.audioSpeed);
-                    loader.noteSpeed = (float)(107.25 / (71.4184491 * Mathf.Pow(data.noteSpeed + 0.9975f, -0.985558604f)));
+                    loader.SetNoteSpeed(data.noteSpeed);
                     loader.touchSpeed = data.touchSpeed;
                     loader.smoothSlideAnime = data.smoothSlideAnime;
                     objectCounter.ComboSetActive(data.comboStatusType);
@@ -86,7 +86,7 @@ public class HttpHandler : MonoBehaviour
             case EditorControlMethod.OpStart:
                 {
                     timeProvider.SetStartTime(data.startAt, data.startTime, data.audioSpeed);
-                    loader.noteSpeed = (float)(107.25 / (71.4184491 * Mathf.Pow(data.noteSpeed + 0.9975f, -0.985558604f)));
+                    loader.SetNoteSpeed(data.noteSpeed);
                     loader.touchSpeed = data.touchSpeed;
                     loader.smoothSlideAnime = data.smoothSlideAnime;
                     objectCounter.ComboSetActive(data.comboStatusType);
@@ -103,7 +103,7 @@ public class HttpHandler : MonoBehaviour
                 {
                     var maidataPath = new FileInfo(data.jsonPath).DirectoryName;
                     timeProvider.SetStartTime(data.startAt, data.startTime, data.audioSpeed, true);
-                    loader.noteSpeed = (float)(107.25 / (71.4184491 * Mathf.Pow(data.noteSpeed + 0.9975f, -0.985558604f)));
+                    loader.SetNoteSpeed(data.noteSpeed);
                     loader.touchSpeed = data.touchSpeed;
                     loader.smoothSlideAnime = data.smoothSlideAnime;
                     objectCounter.ComboSetActive(data.comboStatusType);
