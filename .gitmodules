@@ -1,3 +1,7 @@
 [submodule "Assets/Plugins/SimpleSoflanFramework"]
 	path = Assets/Plugins/SimpleSoflanFramework
 	url = https://github.com/NyagekiFumenProject/SimpleSoflanFramework
+[submodule "Assets/Plugins/MajSimaiX"]
+	path = Assets/Plugins/MajSimaiX
+	url = https://github.com/MikiraSora/MajSimaiX
+
