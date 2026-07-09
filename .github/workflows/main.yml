@@ -79,12 +79,21 @@ jobs:
         with:
           dotnet-version: 6.0.x
 
+      - name: Initialize MajdataEdit submodules
+        run: git submodule update --init --recursive
+        working-directory: MajdataEdit
+
+      - name: List MajdataEdit projects
+        shell: pwsh
+        run: Get-ChildItem -Path . -Filter *.csproj -Recurse | Select-Object -ExpandProperty FullName
+        working-directory: MajdataEdit
+
       - name: Restore MajdataEdit
-        run: dotnet restore
+        run: dotnet restore MajdataEdit.csproj -p:EnableWindowsTargeting=true
         working-directory: MajdataEdit
 
       - name: Publish MajdataEdit
-        run: dotnet publish -c Release -r win-x64 --no-self-contained
+        run: dotnet publish MajdataEdit.csproj -c Release -f net6.0-windows -r win-x64 --no-self-contained -p:EnableWindowsTargeting=true
         working-directory: MajdataEdit
 
       - name: Upload MajdataEdit build
