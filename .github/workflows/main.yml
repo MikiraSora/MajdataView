@@ -56,7 +56,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: MajdataView-StandaloneWindows64
-          path: build
+          path: build/StandaloneWindows64
           if-no-files-found: error
           retention-days: 14
 
@@ -113,17 +113,65 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download MajdataView build
+      - name: Checkout MajdataView assets
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Download MajdataView build into package root
         uses: actions/download-artifact@v4
         with:
           name: MajdataView-StandaloneWindows64
           path: package
 
-      - name: Download MajdataEdit build into MajdataView folder
+      - name: Download MajdataEdit build into package root
         uses: actions/download-artifact@v4
         with:
           name: MajdataEdit-win-x64
-          path: package/StandaloneWindows64
+          path: package
+
+      - name: Extract SFX and Skin assets into package root
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path, PurePosixPath
+          from zipfile import ZipFile
+          import shutil
+
+          source = Path("SFXSKIN.zip")
+          package_dir = Path("package")
+          required_roots = {"SFX", "Skin"}
+
+          if not source.is_file():
+              raise FileNotFoundError(f"Missing required asset archive: {source}")
+
+          with ZipFile(source) as archive:
+              available_roots = {
+                  entry.filename.replace("\\", "/").split("/", 1)[0]
+                  for entry in archive.infolist()
+                  if entry.filename
+              }
+              missing_roots = required_roots - available_roots
+              if missing_roots:
+                  missing = ", ".join(sorted(missing_roots))
+                  raise RuntimeError(f"{source} is missing required folders: {missing}")
+
+              for entry in archive.infolist():
+                  entry_name = entry.filename.replace("\\", "/")
+                  entry_path = PurePosixPath(entry_name)
+
+                  if entry.is_dir() or not entry_path.parts:
+                      continue
+                  if entry_path.is_absolute() or ".." in entry_path.parts:
+                      raise RuntimeError(f"Unsafe path in {source}: {entry.filename}")
+                  if entry_path.parts[0] not in required_roots:
+                      continue
+
+                  target = package_dir.joinpath(*entry_path.parts)
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  with archive.open(entry) as src, target.open("wb") as dst:
+                      shutil.copyfileobj(src, dst)
+          PY
 
       - name: Build download page
         shell: bash
