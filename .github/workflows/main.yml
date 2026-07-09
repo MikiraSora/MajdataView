@@ -1,27 +1,175 @@
-name: Build Project
-run-name: Build exe for Windows Standalone
-on: [push]
+name: Build Unity Player
+run-name: Build Windows x64 (${{ github.ref_name }})
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: unity-build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  build:
+  build-windows:
+    name: Build Windows x64
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/cache@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+          submodules: recursive
+
+      - name: Cache Unity Library
+        uses: actions/cache@v4
         with:
           path: Library
-          key: Library-StandaloneWindows
-          restore-keys: Library-StandaloneWindows
-      - uses: game-ci/unity-builder@v4.2.1
+          key: Library-StandaloneWindows64-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          restore-keys: |
+            Library-StandaloneWindows64-
+            Library-
+
+      - name: Build Windows x64 player
+        uses: game-ci/unity-builder@v4
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
-          targetPlatform: StandaloneWindows
+          unityVersion: auto
+          targetPlatform: StandaloneWindows64
           versioning: Semantic
           buildName: MajdataView
-      - run: ls -R
-      - uses: actions/upload-artifact@v3
+          buildsPath: build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: Build
+          name: MajdataView-StandaloneWindows64
           path: build
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Build download page
+        if: github.ref_name == github.event.repository.default_branch
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from datetime import datetime, timezone
+          from html import escape
+          from pathlib import Path
+          from shutil import copyfile
+          from zipfile import ZIP_DEFLATED, ZipFile
+          import os
+
+          root = Path.cwd()
+          build_dir = root / "build"
+          site_dir = root / "site"
+          downloads_dir = site_dir / "downloads"
+          downloads_dir.mkdir(parents=True, exist_ok=True)
+
+          zip_name = "MajdataView.zip"
+          zip_path = downloads_dir / zip_name
+
+          with ZipFile(zip_path, "w", ZIP_DEFLATED) as archive:
+              for file_path in sorted(build_dir.rglob("*")):
+                  if file_path.is_file():
+                      archive.write(file_path, file_path.relative_to(build_dir.parent))
+
+          build_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+          commit_sha = os.environ["GITHUB_SHA"]
+          ref_name = os.environ["GITHUB_REF_NAME"]
+          repo = os.environ["GITHUB_REPOSITORY"]
+
+          (site_dir / "index.html").write_text(f"""<!doctype html>
+          <html lang="zh-CN">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>MajdataView Downloads</title>
+            <style>
+              :root {{
+                color-scheme: light dark;
+                font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+              }}
+              body {{
+                margin: 0;
+                min-height: 100vh;
+                display: grid;
+                place-items: center;
+                background: #101820;
+                color: #f7fafc;
+              }}
+              main {{
+                width: min(720px, calc(100vw - 32px));
+                padding: 32px;
+                border: 1px solid #2d3748;
+                border-radius: 8px;
+                background: #17212b;
+                box-sizing: border-box;
+              }}
+              h1 {{
+                margin: 0 0 12px;
+                font-size: 28px;
+                font-weight: 700;
+              }}
+              p {{
+                color: #cbd5e0;
+                line-height: 1.6;
+              }}
+              a.button {{
+                display: inline-block;
+                margin: 12px 12px 12px 0;
+                padding: 12px 16px;
+                border-radius: 6px;
+                background: #2b6cb0;
+                color: white;
+                text-decoration: none;
+                font-weight: 600;
+              }}
+              code {{
+                color: #bee3f8;
+              }}
+            </style>
+          </head>
+          <body>
+            <main>
+              <h1>MajdataView Downloads</h1>
+              <p>这里提供由 GitHub Actions 自动构建的 Windows x64 版本。</p>
+              <a class="button" href="downloads/{escape(zip_name)}">下载 MajdataView</a>
+              <p>仓库：<code>{escape(repo)}</code></p>
+              <p>分支：<code>{escape(ref_name)}</code></p>
+              <p>Commit：<code>{escape(commit_sha)}</code></p>
+              <p>构建时间：<code>{escape(build_time)}</code></p>
+            </main>
+          </body>
+          </html>
+          """, encoding="utf-8")
+          PY
+
+      - name: Upload GitHub Pages artifact
+        if: github.ref_name == github.event.repository.default_branch
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy-pages:
+    name: Deploy GitHub Pages
+    if: github.ref_name == github.event.repository.default_branch
+    needs: build-windows
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy download page
+        id: deployment
+        uses: actions/deploy-pages@v4
