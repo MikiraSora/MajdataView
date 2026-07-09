@@ -1,5 +1,5 @@
-name: Build Unity Player
-run-name: Build Windows x64 (${{ github.ref_name }})
+name: Build MajdataEditView
+run-name: Build MajdataEditView (${{ github.ref_name }})
 
 on:
   push:
@@ -11,16 +11,16 @@ permissions:
   id-token: write
 
 concurrency:
-  group: unity-build-${{ github.ref }}
+  group: majdataeditview-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build-windows:
-    name: Build Windows x64
+  build-unity:
+    name: Build MajdataView Windows x64
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout MajdataView
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -36,7 +36,7 @@ jobs:
             Library-StandaloneWindows64-
             Library-
 
-      - name: Build Windows x64 player
+      - name: Build MajdataView Windows x64 player
         uses: game-ci/unity-builder@v4
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
@@ -49,7 +49,7 @@ jobs:
           buildName: MajdataView
           buildsPath: build
 
-      - name: Upload build artifact
+      - name: Upload MajdataView build
         uses: actions/upload-artifact@v4
         with:
           name: MajdataView-StandaloneWindows64
@@ -57,31 +57,84 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  build-editor:
+    name: Build MajdataEdit Windows x64
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout MajdataEdit
+        uses: actions/checkout@v4
+        with:
+          repository: MikiraSora/MajdataEdit
+          fetch-depth: 0
+          submodules: recursive
+          path: MajdataEdit
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 6.0.x
+
+      - name: Restore MajdataEdit
+        run: dotnet restore
+        working-directory: MajdataEdit
+
+      - name: Publish MajdataEdit
+        run: dotnet publish -c Release -r win-x64 --no-self-contained
+        working-directory: MajdataEdit
+
+      - name: Upload MajdataEdit build
+        uses: actions/upload-artifact@v4
+        with:
+          name: MajdataEdit-win-x64
+          path: MajdataEdit/bin/Release/net6.0-windows/win-x64/publish
+          if-no-files-found: error
+          retention-days: 14
+
+  package-pages:
+    name: Package and Deploy Downloads
+    if: github.ref_name == github.event.repository.default_branch
+    needs:
+      - build-unity
+      - build-editor
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download MajdataView build
+        uses: actions/download-artifact@v4
+        with:
+          name: MajdataView-StandaloneWindows64
+          path: package
+
+      - name: Download MajdataEdit build
+        uses: actions/download-artifact@v4
+        with:
+          name: MajdataEdit-win-x64
+          path: package/MajdataEdit
+
       - name: Build download page
-        if: github.ref_name == github.event.repository.default_branch
         shell: bash
         run: |
           python3 <<'PY'
           from datetime import datetime, timezone
           from html import escape
           from pathlib import Path
-          from shutil import copyfile
           from zipfile import ZIP_DEFLATED, ZipFile
           import os
 
           root = Path.cwd()
-          build_dir = root / "build"
+          package_dir = root / "package"
           site_dir = root / "site"
           downloads_dir = site_dir / "downloads"
           downloads_dir.mkdir(parents=True, exist_ok=True)
 
-          zip_name = "MajdataView.zip"
+          zip_name = "MajdataEditView.zip"
           zip_path = downloads_dir / zip_name
 
           with ZipFile(zip_path, "w", ZIP_DEFLATED) as archive:
-              for file_path in sorted(build_dir.rglob("*")):
+              for file_path in sorted(package_dir.rglob("*")):
                   if file_path.is_file():
-                      archive.write(file_path, file_path.relative_to(build_dir.parent))
+                      archive.write(file_path, file_path.relative_to(package_dir))
 
           build_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
           commit_sha = os.environ["GITHUB_SHA"]
@@ -93,7 +146,7 @@ jobs:
           <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>MajdataView Downloads</title>
+            <title>MajdataEditView Downloads</title>
             <style>
               :root {{
                 color-scheme: light dark;
@@ -141,9 +194,9 @@ jobs:
           </head>
           <body>
             <main>
-              <h1>MajdataView Downloads</h1>
-              <p>这里提供由 GitHub Actions 自动构建的 Windows x64 版本。</p>
-              <a class="button" href="downloads/{escape(zip_name)}">下载 MajdataView</a>
+              <h1>MajdataEditView Downloads</h1>
+              <p>这里提供由 GitHub Actions 自动构建的 MajdataView + MajdataEdit Windows x64 合并包。</p>
+              <a class="button" href="downloads/{escape(zip_name)}">下载 MajdataEditView</a>
               <p>仓库：<code>{escape(repo)}</code></p>
               <p>分支：<code>{escape(ref_name)}</code></p>
               <p>Commit：<code>{escape(commit_sha)}</code></p>
@@ -155,7 +208,6 @@ jobs:
           PY
 
       - name: Upload GitHub Pages artifact
-        if: github.ref_name == github.event.repository.default_branch
         uses: actions/upload-pages-artifact@v3
         with:
           path: site
@@ -163,7 +215,7 @@ jobs:
   deploy-pages:
     name: Deploy GitHub Pages
     if: github.ref_name == github.event.repository.default_branch
-    needs: build-windows
+    needs: package-pages
     runs-on: ubuntu-latest
     environment:
       name: github-pages
