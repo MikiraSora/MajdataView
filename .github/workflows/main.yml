@@ -119,11 +119,11 @@ jobs:
           name: MajdataView-StandaloneWindows64
           path: package
 
-      - name: Download MajdataEdit build
+      - name: Download MajdataEdit build into MajdataView folder
         uses: actions/download-artifact@v4
         with:
           name: MajdataEdit-win-x64
-          path: package/MajdataEdit
+          path: package/StandaloneWindows64
 
       - name: Build download page
         shell: bash
