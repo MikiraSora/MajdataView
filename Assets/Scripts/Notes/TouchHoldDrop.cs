@@ -23,6 +23,7 @@ public class TouchHoldDrop : TouchHoldBase
     private float moveDuration;
 
     private float wholeDuration;
+    private float soflanEndTime;
 
     // Start is called before the first frame update
     private void Start()
@@ -38,6 +39,9 @@ public class TouchHoldDrop : TouchHoldBase
         holdEffect.SetActive(false);
 
         timeProvider = GameObject.Find("AudioTimeProvider").GetComponent<AudioTimeProvider>();
+
+        if (SoflanManager.Instance.containsSoflans())
+            soflanEndTime = GetSoflanValue((time + LastFor) * 1000.0f);
 
         firework = GameObject.Find("FireworkEffect");
         fireworkEffect = firework.GetComponent<Animator>();
@@ -208,6 +212,12 @@ public class TouchHoldDrop : TouchHoldBase
     // Update is called once per frame
     private void Update()
     {
+        if (SoflanManager.Instance.containsSoflans())
+        {
+            Update_soflan();
+            return;
+        }
+
         var timing = GetJudgeTiming();
         var pow = -Mathf.Exp(8 * (timing * 0.4f / moveDuration) - 0.85f) + 0.42f;
         var distance = Mathf.Clamp(pow, 0f, 0.4f);
@@ -224,6 +234,46 @@ public class TouchHoldDrop : TouchHoldBase
             mask.enabled = true;
             SetfanColor(Color.white);
             mask.alphaCutoff = Mathf.Clamp(0.91f * (1 - (LastFor - timing) / LastFor), 0f, 1f);
+        }
+
+        if (float.IsNaN(distance)) distance = 0f;
+        if (distance == 0f)
+        {
+            //holdEffect.SetActive(true);
+            holdEffect.transform.position = transform.position;
+        }
+        for (var i = 0; i < 4; i++)
+        {
+            var pos = (0.226f + distance) * GetAngle(i);
+            fans[i].transform.localPosition = pos;
+        }
+    }
+    private float GetSoflanEndTiming() => (GetSoflanValue(timeProvider.AudioTime * 1000.0f) - soflanEndTime) / 1000.0f;
+
+    // soflan(变速)谱面下的定位:使用 GetSoflanTiming() 替代真实音频时间,
+    // mask 填充进度按 Soflan 时间轴换算
+    private void Update_soflan()
+    {
+        var timing = GetSoflanTiming();
+        var pow = -Mathf.Exp(8 * (timing * 0.4f / moveDuration) - 0.85f) + 0.42f;
+        var distance = Mathf.Clamp(pow, 0f, 0.4f);
+
+        if (-timing <= wholeDuration && -timing > moveDuration)
+        {
+            SetfanColor(new Color(1f, 1f, 1f, Mathf.Clamp((wholeDuration + timing) / displayDuration, 0f, 1f)));
+            fans[5].SetActive(false);
+            mask.enabled = false;
+        }
+        else if (-timing < moveDuration)
+        {
+            fans[5].SetActive(true);
+            mask.enabled = true;
+            SetfanColor(Color.white);
+            var soflanLastFor = timing - GetSoflanEndTiming();
+            if (soflanLastFor > 0f)
+                mask.alphaCutoff = Mathf.Clamp(0.91f * timing / soflanLastFor, 0f, 1f);
+            else
+                mask.alphaCutoff = 0f;
         }
 
         if (float.IsNaN(distance)) distance = 0f;

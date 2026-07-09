@@ -190,10 +190,66 @@ public class TouchDrop : TouchBase
     // Update is called once per frame
     private void Update()
     {
+        if (SoflanManager.Instance.containsSoflans())
+        {
+            Update_soflan();
+            return;
+        }
+
         var timing = timeProvider.AudioTime - time;
 
         //var timing = time;
         //var pow = Mathf.Pow(-timing * speed, 0.1f)-0.4f;
+        var pow = -Mathf.Exp(8 * (timing * 0.4f / moveDuration) - 0.85f) + 0.42f;
+        var distance = Mathf.Clamp(pow, 0f, 0.4f);
+
+        if (timing >= 0)
+        {
+            var _pow = -Mathf.Exp(- 0.85f) + 0.42f;
+            var _distance = Mathf.Clamp(_pow, 0f, 0.4f);
+            for (var i = 0; i < 4; i++)
+            {
+                var pos = (0.226f + _distance) * GetAngle(i);
+                fans[i].transform.localPosition = pos;
+            }
+            return;
+        }
+
+        if (timing > -0.02f) justEffect.SetActive(true);
+
+        if (-timing <= wholeDuration && -timing > moveDuration)
+        {
+            if (!isStarted)
+            {
+                isStarted = true;
+                multTouchHandler.registerTouch(this);
+            }
+
+            SetfanColor(new Color(1f, 1f, 1f, Mathf.Clamp((wholeDuration + timing) / displayDuration, 0f, 1f)));
+        }
+        else if (-timing < moveDuration)
+        {
+            if (!isStarted)
+            {
+                isStarted = true;
+                multTouchHandler.registerTouch(this);
+            }
+
+            SetfanColor(Color.white);
+        }
+
+        if (float.IsNaN(distance)) distance = 0f;
+        for (var i = 0; i < 4; i++)
+        {
+            var pos = (0.226f + distance) * GetAngle(i);
+            fans[i].transform.localPosition = pos;
+        }
+    }
+    // soflan(变速)谱面下的定位:使用 GetSoflanTiming() 替代真实音频时间
+    private void Update_soflan()
+    {
+        var timing = GetSoflanTiming();
+
         var pow = -Mathf.Exp(8 * (timing * 0.4f / moveDuration) - 0.85f) + 0.42f;
         var distance = Mathf.Clamp(pow, 0f, 0.4f);
 
