@@ -177,7 +177,7 @@ jobs:
         shell: bash
         run: |
           python3 <<'PY'
-          from datetime import datetime, timezone
+          from datetime import datetime, timedelta, timezone
           from html import escape
           from pathlib import Path
           from zipfile import ZIP_DEFLATED, ZipFile
@@ -197,71 +197,261 @@ jobs:
                   if file_path.is_file():
                       archive.write(file_path, file_path.relative_to(package_dir))
 
-          build_time = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+          beijing_timezone = timezone(timedelta(hours=8))
+          build_time = datetime.now(beijing_timezone).strftime("%Y-%m-%d %H:%M:%S")
           commit_sha = os.environ["GITHUB_SHA"]
           ref_name = os.environ["GITHUB_REF_NAME"]
           repo = os.environ["GITHUB_REPOSITORY"]
+          repo_url = f"https://github.com/{repo}"
+          commit_url = f"{repo_url}/commit/{commit_sha}"
 
           (site_dir / "index.html").write_text(f"""<!doctype html>
           <html lang="zh-CN">
           <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>MajdataEditView Downloads</title>
+            <meta name="description" content="MajdataView 与 MajdataEdit Windows x64 自动构建下载及谱面资源。">
+            <title>MajdataEditView 下载</title>
             <style>
               :root {{
-                color-scheme: light dark;
+                color-scheme: dark;
                 font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+                background: #07111f;
+                color: #f8fafc;
               }}
+              * {{ box-sizing: border-box; }}
               body {{
                 margin: 0;
                 min-height: 100vh;
-                display: grid;
-                place-items: center;
-                background: #101820;
-                color: #f7fafc;
+                background:
+                  radial-gradient(circle at 15% 0%, rgba(14, 165, 233, 0.2), transparent 32rem),
+                  radial-gradient(circle at 85% 12%, rgba(99, 102, 241, 0.16), transparent 28rem),
+                  #07111f;
               }}
               main {{
-                width: min(720px, calc(100vw - 32px));
-                padding: 32px;
-                border: 1px solid #2d3748;
-                border-radius: 8px;
-                background: #17212b;
-                box-sizing: border-box;
+                width: min(960px, calc(100% - 32px));
+                margin: 0 auto;
+                padding: 72px 0;
               }}
               h1 {{
-                margin: 0 0 12px;
-                font-size: 28px;
-                font-weight: 700;
+                margin: 12px 0 16px;
+                font-size: clamp(2rem, 6vw, 3.75rem);
+                line-height: 1.05;
+                letter-spacing: -0.04em;
               }}
               p {{
-                color: #cbd5e0;
+                margin: 0;
+                color: #aebdd0;
                 line-height: 1.6;
               }}
-              a.button {{
-                display: inline-block;
-                margin: 12px 12px 12px 0;
-                padding: 12px 16px;
-                border-radius: 6px;
-                background: #2b6cb0;
-                color: white;
-                text-decoration: none;
-                font-weight: 600;
+              a {{ color: inherit; }}
+              a:focus-visible {{
+                outline: 3px solid #7dd3fc;
+                outline-offset: 3px;
               }}
-              code {{
-                color: #bee3f8;
+              .eyebrow {{
+                display: inline-flex;
+                padding: 6px 10px;
+                border: 1px solid rgba(125, 211, 252, 0.28);
+                border-radius: 999px;
+                background: rgba(14, 165, 233, 0.1);
+                color: #7dd3fc;
+                font-size: 0.78rem;
+                font-weight: 700;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+              }}
+              .intro {{
+                max-width: 680px;
+                font-size: 1.08rem;
+              }}
+              .download-panel {{
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) auto;
+                gap: 28px;
+                align-items: center;
+                margin-top: 36px;
+                padding: 28px;
+                border: 1px solid rgba(148, 163, 184, 0.2);
+                border-radius: 20px;
+                background: rgba(15, 29, 48, 0.86);
+                box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+                backdrop-filter: blur(12px);
+              }}
+              .download-panel h2 {{
+                margin: 0 0 8px;
+                font-size: 1.45rem;
+              }}
+              .button {{
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 48px;
+                padding: 0 20px;
+                border-radius: 12px;
+                background: linear-gradient(135deg, #0ea5e9, #2563eb);
+                box-shadow: 0 12px 30px rgba(14, 165, 233, 0.24);
+                color: #fff;
+                text-decoration: none;
+                font-weight: 700;
+                white-space: nowrap;
+                transition: transform 160ms ease, box-shadow 160ms ease;
+              }}
+              .button:hover {{
+                transform: translateY(-2px);
+                box-shadow: 0 16px 36px rgba(14, 165, 233, 0.34);
+              }}
+              .metadata {{
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 12px 24px;
+                margin: 18px 0 0;
+                padding: 18px 0 0;
+                border-top: 1px solid rgba(148, 163, 184, 0.14);
+              }}
+              .metadata div {{ min-width: 0; }}
+              .metadata dt {{
+                margin-bottom: 4px;
+                color: #71839a;
+                font-size: 0.78rem;
+              }}
+              .metadata dd {{
+                margin: 0;
+                color: #dbeafe;
+                font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+                font-size: 0.84rem;
+                overflow-wrap: anywhere;
+              }}
+              .metadata a {{
+                color: #bae6fd;
+                text-decoration-color: rgba(186, 230, 253, 0.4);
+                text-underline-offset: 3px;
+              }}
+              .resources {{ margin-top: 52px; }}
+              .section-heading {{
+                display: flex;
+                gap: 20px;
+                align-items: end;
+                justify-content: space-between;
+                margin-bottom: 18px;
+              }}
+              .section-heading h2 {{
+                margin: 0;
+                font-size: 1.65rem;
+              }}
+              .resource-grid {{
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 14px;
+              }}
+              .resource-card {{
+                display: flex;
+                gap: 18px;
+                justify-content: space-between;
+                min-height: 148px;
+                padding: 22px;
+                border: 1px solid rgba(148, 163, 184, 0.16);
+                border-radius: 16px;
+                background: rgba(15, 29, 48, 0.64);
+                text-decoration: none;
+                transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+              }}
+              .resource-card:hover {{
+                transform: translateY(-2px);
+                border-color: rgba(125, 211, 252, 0.42);
+                background: rgba(20, 39, 64, 0.88);
+              }}
+              .resource-card h3 {{
+                margin: 8px 0 7px;
+                color: #f8fafc;
+                font-size: 1rem;
+              }}
+              .resource-card p {{ font-size: 0.9rem; }}
+              .tag {{
+                color: #7dd3fc;
+                font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+                font-size: 0.72rem;
+                font-weight: 700;
+                letter-spacing: 0.08em;
+              }}
+              .arrow {{
+                color: #7dd3fc;
+                font-size: 1.2rem;
+              }}
+              footer {{
+                margin-top: 38px;
+                color: #62748a;
+                font-size: 0.82rem;
+              }}
+              @media (max-width: 680px) {{
+                main {{ padding: 44px 0; }}
+                .download-panel {{
+                  grid-template-columns: 1fr;
+                  padding: 22px;
+                }}
+                .button {{ width: 100%; }}
+                .metadata, .resource-grid {{ grid-template-columns: 1fr; }}
+                .section-heading {{ align-items: start; flex-direction: column; gap: 6px; }}
+              }}
+              @media (prefers-reduced-motion: reduce) {{
+                .button, .resource-card {{ transition: none; }}
               }}
             </style>
           </head>
           <body>
             <main>
-              <h1>MajdataEditView Downloads</h1>
-              <p>这里提供由 GitHub Actions 自动构建的 MajdataView + MajdataEdit Windows x64 合并包。</p>
-              <a class="button" href="downloads/{escape(zip_name)}">下载 MajdataEditView</a>
-              <p>仓库：<code>{escape(repo)}</code></p>
-              <p>分支：<code>{escape(ref_name)}</code></p>
-              <p>Commit：<code>{escape(commit_sha)}</code></p>
-              <p>构建时间：<code>{escape(build_time)}</code></p>
+              <span class="eyebrow">Windows x64 · 自动构建</span>
+              <h1>MajdataEditView 下载</h1>
+              <p class="intro">MajdataView 与 MajdataEdit 的 Windows x64 合并包，包含运行所需的 SFX 与 Skin 资源。</p>
+
+              <section class="download-panel" aria-labelledby="download-title">
+                <div>
+                  <h2 id="download-title">最新构建</h2>
+                  <p>由 GitHub Actions 自动打包，可直接下载使用。</p>
+                  <dl class="metadata">
+                    <div>
+                      <dt>仓库 / 分支</dt>
+                      <dd><a href="{escape(repo_url)}">{escape(repo)}</a> / {escape(ref_name)}</dd>
+                    </div>
+                    <div>
+                      <dt>Commit</dt>
+                      <dd><a href="{escape(commit_url)}">{escape(commit_sha[:12])}</a></dd>
+                    </div>
+                    <div>
+                      <dt>构建时间（北京时间 UTC+8）</dt>
+                      <dd>{escape(build_time)}</dd>
+                    </div>
+                    <div>
+                      <dt>目标平台</dt>
+                      <dd>Windows x64</dd>
+                    </div>
+                  </dl>
+                </div>
+                <a class="button" href="downloads/{escape(zip_name)}" download>下载 ZIP</a>
+              </section>
+
+              <section class="resources" aria-labelledby="resources-title">
+                <div class="section-heading">
+                  <h2 id="resources-title">谱面与变速资源</h2>
+                  <p>语法参考、实现文档与 AI 辅助 Skill</p>
+                </div>
+                <div class="resource-grid">
+                  <a class="resource-card" href="https://github.com/MikiraSora/MajSimaiX/tree/master/simai-skill" target="_blank" rel="noopener noreferrer">
+                    <div><span class="tag">SKILL · SIMAI</span><h3>Simai 语法 Skill</h3><p>辅助读取、编写、检查与修复 Simai 谱面。</p></div><span class="arrow" aria-hidden="true">↗</span>
+                  </a>
+                  <a class="resource-card" href="https://github.com/MikiraSora/MajSimaiX/blob/master/HS_Soflan_Reference.md" target="_blank" rel="noopener noreferrer">
+                    <div><span class="tag">DOCS · SYNTAX</span><h3>Simai 变速文档（语法）</h3><p>HS、Soflan 与 FixedSoflan 的语法及解析行为参考。</p></div><span class="arrow" aria-hidden="true">↗</span>
+                  </a>
+                  <a class="resource-card" href="https://github.com/MikiraSora/Assembly-CSharp.SoflanSupport.mm/tree/main/skills/design-generate-soflan-skill" target="_blank" rel="noopener noreferrer">
+                    <div><span class="tag">SKILL · SOFLAN</span><h3>变速理解 / 转换 / 设计 / 辅助 Skill</h3><p>辅助理解运行逻辑、转换命令并设计变速效果。</p></div><span class="arrow" aria-hidden="true">↗</span>
+                  </a>
+                  <a class="resource-card" href="https://github.com/MikiraSora/Assembly-CSharp.SoflanSupport.mm/tree/main/docs" target="_blank" rel="noopener noreferrer">
+                    <div><span class="tag">DOCS · INTERNALS</span><h3>变速文档（实现 / 原理）</h3><p>了解 Soflan 支持的实现细节、运行时行为与设计原理。</p></div><span class="arrow" aria-hidden="true">↗</span>
+                  </a>
+                </div>
+              </section>
+
+              <footer>MajdataEditView · GitHub Actions 自动构建</footer>
             </main>
           </body>
           </html>
