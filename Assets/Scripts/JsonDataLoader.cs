@@ -67,6 +67,7 @@ public class JsonDataLoader : MonoBehaviour
 
     private int slideLayer = -1;
     private int noteSortOrder = 0;
+    private const double TIMING_EPSILON = 1e-9;
 
     private static readonly Dictionary<SimaiNoteType, int> NOTE_LAYER_COUNT = new Dictionary<SimaiNoteType, int>()
     {
@@ -523,8 +524,15 @@ public class JsonDataLoader : MonoBehaviour
         Stopwatch sw = new();
         sw.Start();
 
-        SoflanManager.Instance.loadChart(timingList);
-        foreach (var timing in timingList)
+        var timings = timingList.ToArray();
+        var simultaneousNotesByTiming = timings.GroupBy(x => GetTimingKey(x.Timing))
+                                                .ToDictionary(x => x.Key, x => x.SelectMany(y => y.Notes).ToArray());
+        var touchMembersByTiming = simultaneousNotesByTiming.Keys.ToDictionary(x => x, _ => new List<TouchDrop>());
+        var lastTimingByTime = timings.GroupBy(x => GetTimingKey(x.Timing))
+                                      .ToDictionary(x => x.Key, x => x.Last());
+
+        SoflanManager.Instance.loadChart(timings);
+        foreach (var timing in timings)
         {
             if (sw.ElapsedMilliseconds >= 2)
             {
@@ -533,12 +541,14 @@ public class JsonDataLoader : MonoBehaviour
             }
             try
             {
+                var timingKey = GetTimingKey(timing.Timing);
+                var simultaneousNotes = simultaneousNotesByTiming[timingKey];
+                var members = touchMembersByTiming[timingKey];
                 if (timing.Timing < ignoreOffset)
                 {
                     CountNoteCount(timing.Notes.ToList());
                     continue;
                 }
-                List<TouchDrop> members = new();
                 for (var i = 0; i < timing.Notes.Count(); i++)
                 {
                     var note = timing.Notes[i];
@@ -577,7 +587,7 @@ public class JsonDataLoader : MonoBehaviour
 
                         NDCompo.BreakShine = BreakShine;
 
-                        if (timing.Notes.Count() > 1) NDCompo.isEach = true;
+                        if (simultaneousNotes.Length > 1) NDCompo.isEach = true;
                         NDCompo.isBreak = note.IsBreak;
                         NDCompo.isEX = note.IsEx;
                         NDCompo.time = (float)timing.Timing;
@@ -610,7 +620,7 @@ public class JsonDataLoader : MonoBehaviour
                         NDCompo.HoldShine = HoldShine;
                         NDCompo.BreakShine = BreakShine;
 
-                        if (timing.Notes.Count() > 1) NDCompo.isEach = true;
+                        if (simultaneousNotes.Length > 1) NDCompo.isEach = true;
                         NDCompo.time = (float)timing.Timing;
                         NDCompo.LastFor = (float)note.HoldTime;
                         NDCompo.startPosition = note.StartPosition;
@@ -640,7 +650,7 @@ public class JsonDataLoader : MonoBehaviour
                         NDCompo.soflanGroup = timing.SoflanGroup;
                         NDCompo.soflanTime = (float)SoflanManager.Instance.ConvertAudioTimeToY_PreviewMode(NDCompo.time * 1000, timing.SoflanGroup, touchSpeed);
 
-                        if (timing.Notes.Count() > 1) NDCompo.isEach = true;
+                        if (simultaneousNotes.Length > 1) NDCompo.isEach = true;
 
                         Array.Copy(customSkin.TouchHold, NDCompo.TouchHoldSprite, 5);
                         NDCompo.TouchPointSprite = customSkin.TouchPoint;
@@ -669,7 +679,7 @@ public class JsonDataLoader : MonoBehaviour
                         NDCompo.soflanGroup = timing.SoflanGroup;
                         NDCompo.soflanTime = (float)SoflanManager.Instance.ConvertAudioTimeToY_PreviewMode(NDCompo.time * 1000, timing.SoflanGroup, noteSpeed);
 
-                        if (timing.Notes.Count() > 1)
+                        if (simultaneousNotes.Length > 1)
                         {
                             NDCompo.isEach = true;
                             members.Add(NDCompo);
@@ -680,11 +690,11 @@ public class JsonDataLoader : MonoBehaviour
                     }
 
                     else if (note.Type == SimaiNoteType.Slide)
-                        InstantiateStarGroup(timing, note, i, lastNoteTime); // 星星组
+                        InstantiateStarGroup(timing, note, i, lastNoteTime, simultaneousNotes); // 星星组
                 }
 
 
-                if (members.Count != 0)
+                if (ReferenceEquals(timing, lastTimingByTime[timingKey]) && members.Count != 0)
                 {
                     var sensorTypes = members.GroupBy(x => x.GetSensor())
                                              .Select(x => x.Key)
@@ -728,9 +738,9 @@ public class JsonDataLoader : MonoBehaviour
                         member.GroupInfo = touchGroups.Find(x => x.Members.Any(y => y == member));
                 }
 
-                var eachNotes = timing.Notes.AsEnumerable().Where(o =>
+                var eachNotes = simultaneousNotes.Where(o =>
                     o.Type != SimaiNoteType.Touch && o.Type != SimaiNoteType.TouchHold).ToArray();
-                if (eachNotes.Count() > 1) //有多个非touchnote
+                if (ReferenceEquals(timing, lastTimingByTime[timingKey]) && eachNotes.Length > 1) //有多个非touchnote
                 {
                     var startPos = eachNotes[0].StartPosition;
                     var endPos = eachNotes[1].StartPosition;
@@ -770,6 +780,12 @@ public class JsonDataLoader : MonoBehaviour
         noteParserTask = null;
         yield break;
     }
+
+    private static long GetTimingKey(double timing)
+    {
+        return (long)Math.Round(timing / TIMING_EPSILON);
+    }
+
     public void LoadJson(string json, float ignoreOffset)
     {
         jsonLoaderTask = Task.Run(() => JsonConvert.DeserializeObject<Majson>(json));
@@ -849,7 +865,7 @@ public class JsonDataLoader : MonoBehaviour
             }
     }
 
-    private void InstantiateStarGroup(SimaiTimingPoint timing, SimaiNote note, int sort, double lastNoteTime)
+    private void InstantiateStarGroup(SimaiTimingPoint timing, SimaiNote note, int sort, double lastNoteTime, SimaiNote[] simultaneousNotes)
     {
         int charIntParse(char c)
         {
@@ -1030,7 +1046,7 @@ public class JsonDataLoader : MonoBehaviour
             {
                 if (isConn)
                     throw new InvalidOperationException("不允许Wifi Slide作为Connection Slide的一部分");
-                InstantiateWifi(timing, subSlide[i]);
+                InstantiateWifi(timing, subSlide[i], simultaneousNotes);
             }
             else
             {
@@ -1042,7 +1058,7 @@ public class JsonDataLoader : MonoBehaviour
                     IsGroupPartEnd = isGroupEnd,
                     Parent = parent
                 };
-                parent = InstantiateStar(timing, subSlide[i], info);
+                parent = InstantiateStar(timing, subSlide[i], info, simultaneousNotes);
                 subSlides.Add(parent.GetComponent<SlideDrop>());
             }
         }
@@ -1054,7 +1070,7 @@ public class JsonDataLoader : MonoBehaviour
         subSlides.ForEach(s => s.ConnectInfo.TotalSlideLen = totalSlideLen);
     }
 
-    private GameObject InstantiateWifi(SimaiTimingPoint timing, SimaiNote note)
+    private GameObject InstantiateWifi(SimaiTimingPoint timing, SimaiNote note, SimaiNote[] simultaneousNotes)
     {
         var str = note.RawContent.Substring(0, 3);
         var digits = str.Split('w');
@@ -1110,21 +1126,21 @@ public class JsonDataLoader : MonoBehaviour
         Array.Copy(customSkin.Wifi_Each, WifiCompo.eachSlide, 11);
         Array.Copy(customSkin.Wifi_Break, WifiCompo.breakSlide, 11);
 
-        if (timing.Notes.Count() > 1)
+        if (simultaneousNotes.Length > 1)
         {
             NDCompo.isEach = true;
             NDCompo.isDouble = false;
-            if (timing.Notes.Where(
+            if (simultaneousNotes.Where(
                     o => o.Type == SimaiNoteType.Slide).Count()
                 > 1)
                 WifiCompo.isEach = true;
-            var count = timing.Notes.Where(
+            var count = simultaneousNotes.Where(
                 o => o.Type == SimaiNoteType.Slide &&
                      o.StartPosition == note.StartPosition).Count();
             if (count > 1) //有同起点
             {
                 NDCompo.isDouble = true;
-                if (count == timing.Notes.Count())
+                if (count == simultaneousNotes.Length)
                     NDCompo.isEach = false;
                 else
                     NDCompo.isEach = true;
@@ -1156,7 +1172,7 @@ public class JsonDataLoader : MonoBehaviour
         return slideWifi;
     }
 
-    private GameObject InstantiateStar(SimaiTimingPoint timing, SimaiNote note, ConnSlideInfo info)
+    private GameObject InstantiateStar(SimaiTimingPoint timing, SimaiNote note, ConnSlideInfo info, SimaiNote[] simultaneousNotes)
     {
         var GOnote = Instantiate(starPrefab, notes.transform);
         var NDCompo = GOnote.GetComponent<StarDrop>();
@@ -1210,22 +1226,22 @@ public class JsonDataLoader : MonoBehaviour
         SliCompo.slideConst = SLIDE_AREA_CONST[slideShape];
         SliCompo.smoothSlideAnime = smoothSlideAnime;
 
-        if (timing.Notes.Count() > 1)
+        if (simultaneousNotes.Length > 1)
         {
             NDCompo.isEach = true;
-            if (timing.Notes.Where(o => o.Type == SimaiNoteType.Slide).Count() > 1)
+            if (simultaneousNotes.Where(o => o.Type == SimaiNoteType.Slide).Count() > 1)
             {
                 SliCompo.isEach = true;
                 slide_star.GetComponent<SpriteRenderer>().sprite = customSkin.Star_Each;
             }
 
-            var count = timing.Notes.Where(
+            var count = simultaneousNotes.Where(
                 o => o.Type == SimaiNoteType.Slide &&
                      o.StartPosition == note.StartPosition).Count();
             if (count > 1)
             {
                 NDCompo.isDouble = true;
-                if (count == timing.Notes.Count())
+                if (count == simultaneousNotes.Length)
                     NDCompo.isEach = false;
                 else
                     NDCompo.isEach = true;
