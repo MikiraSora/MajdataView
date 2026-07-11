@@ -189,7 +189,21 @@ jobs:
           downloads_dir = site_dir / "downloads"
           downloads_dir.mkdir(parents=True, exist_ok=True)
 
-          zip_name = "MajdataEditView.zip"
+          beijing_timezone = timezone(timedelta(hours=8))
+          build_datetime = datetime.now(beijing_timezone)
+          build_time = build_datetime.strftime("%Y-%m-%d %H:%M:%S")
+          ga_build_time = build_datetime.strftime("%Y%m%d%H%M%S")
+          commit_sha = os.environ["GITHUB_SHA"]
+          ref_name = os.environ["GITHUB_REF_NAME"]
+          safe_ref_name = "".join(
+              character if character.isascii() and (character.isalnum() or character in ".-_") else "-"
+              for character in ref_name
+          ).strip(".-_") or "unknown"
+          build_configuration = "Release"
+          zip_name = (
+              f"MajdataEditView_{safe_ref_name}_"
+              f"(GABuild{ga_build_time}_{commit_sha[:6]}_{build_configuration}).zip"
+          )
           zip_path = downloads_dir / zip_name
 
           with ZipFile(zip_path, "w", ZIP_DEFLATED) as archive:
@@ -197,10 +211,6 @@ jobs:
                   if file_path.is_file():
                       archive.write(file_path, file_path.relative_to(package_dir))
 
-          beijing_timezone = timezone(timedelta(hours=8))
-          build_time = datetime.now(beijing_timezone).strftime("%Y-%m-%d %H:%M:%S")
-          commit_sha = os.environ["GITHUB_SHA"]
-          ref_name = os.environ["GITHUB_REF_NAME"]
           repo = os.environ["GITHUB_REPOSITORY"]
           repo_url = f"https://github.com/{repo}"
           commit_url = f"{repo_url}/commit/{commit_sha}"
