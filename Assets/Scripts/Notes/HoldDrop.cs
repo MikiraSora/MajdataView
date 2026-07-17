@@ -518,15 +518,24 @@ public class HoldDrop : NoteLongDrop
         else if (!holdAnimStart && GetJudgeTiming() >= 0.1f)//忽略开头6帧与结尾12帧
         {
             holdAnimStart = true;
-            animator.runtimeAnimatorController = HoldShine;
-            animator.enabled = true;
             var sprRenderer = GetComponent<SpriteRenderer>();
-            if (isBreak && !isMine)
-                sprRenderer.sprite = breakHoldOnSpr;
-            else if (isEach && !isMine)
-                sprRenderer.sprite = eachHoldOnSpr;
-            else
+            if (isMine)
+            {
+                animator.enabled = false;
                 sprRenderer.sprite = holdOnSpr;
+                ApplyMineVisual(sprRenderer);
+            }
+            else
+            {
+                animator.runtimeAnimatorController = HoldShine;
+                animator.enabled = true;
+                if (isBreak)
+                    sprRenderer.sprite = breakHoldOnSpr;
+                else if (isEach)
+                    sprRenderer.sprite = eachHoldOnSpr;
+                else
+                    sprRenderer.sprite = holdOnSpr;
+            }
         }
     }
     protected override void StopHoldEffect()
@@ -537,6 +546,8 @@ public class HoldDrop : NoteLongDrop
         animator.enabled = false;
         var sprRenderer = GetComponent<SpriteRenderer>();
         sprRenderer.sprite = holdOffSpr;
+        if (isMine)
+            ApplyMineVisual(sprRenderer);
     }
 
 }
