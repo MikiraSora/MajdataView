@@ -626,6 +626,7 @@ public class JsonDataLoader : MonoBehaviour
                         NDCompo.LastFor = (float)note.HoldTime;
                         NDCompo.startPosition = note.StartPosition;
                         NDCompo.speed = noteSpeed;
+                        NDCompo.noteSpeedValue = noteSpeedValue;
                         NDCompo.isEX = note.IsEx;
                         NDCompo.isBreak = note.IsBreak;
                         NDCompo.isMine = note.IsMine;
@@ -758,7 +759,12 @@ public class JsonDataLoader : MonoBehaviour
                     var lineDrop = line.GetComponent<EachLineDrop>();
 
                     lineDrop.time = (float)timing.Timing;
-                    lineDrop.speed = noteSpeed;
+                    lineDrop.noteSpeedValue = noteSpeedValue;
+                    lineDrop.soflanGroup = timing.SoflanGroup;
+                    lineDrop.soflanTime = (float)SoflanManager.Instance.ConvertAudioTimeToY_PreviewMode(
+                        lineDrop.time * 1000f,
+                        timing.SoflanGroup,
+                        noteSpeed);
 
                     endPos = endPos < 0 ? endPos + 8 : endPos;
                     endPos = endPos > 8 ? endPos - 8 : endPos;

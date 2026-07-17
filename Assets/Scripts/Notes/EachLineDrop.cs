@@ -1,11 +1,14 @@
 using UnityEngine;
+using Assets.Scripts.Notes;
 #nullable enable
 public class EachLineDrop : MonoBehaviour
 {
     public float time;
     public int startPosition = 1;
     public int curvLength = 1;
-    public float speed = 1;
+    public float noteSpeedValue = 600f;
+    public int soflanGroup;
+    public float soflanTime;
 
     public GameObject obj1;
     public GameObject obj2;
@@ -28,14 +31,24 @@ public class EachLineDrop : MonoBehaviour
     // Update is called once per frame
     private void Update()
     {
-        var timing = timeProvider.AudioTime - time;
-        var distance = timing * speed + 4.8f;
-        var destScale = distance * 0.4f + 0.51f;
-        if (timing > 0) Destroy(gameObject);
-        if (distance < 1.225f)
+        var judgeTiming = timeProvider.AudioTime - time;
+        var timing = judgeTiming;
+        if (SoflanManager.Instance.containsSoflans())
+        {
+            var soflanValue = SoflanManager.Instance.ConvertAudioTimeToY_PreviewMode(
+                timeProvider.AudioTime * 1000f,
+                soflanGroup);
+            timing = (soflanValue - soflanTime) / 1000f;
+        }
+
+        var distance = TapBase.GetTapDistance(timing, noteSpeedValue);
+        var destScale = TapBase.GetTapScale(timing, noteSpeedValue);
+        if (judgeTiming > 0) Destroy(gameObject);
+
+        sr.forceRenderingOff = destScale <= 0.3f;
+        if (destScale < 1f)
         {
             distance = 1.225f;
-            if (destScale > 0.3f) sr.forceRenderingOff = false;
         }
 
         var lineScale = Mathf.Abs(distance / 4.8f);

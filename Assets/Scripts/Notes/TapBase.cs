@@ -70,7 +70,7 @@ namespace Assets.Scripts.Notes
         {
             return GetMaiBugAdjustMSec(noteSpeedValue);
         }
-        protected float GetMaiBugAdjustMSec(float speedValue)
+        public static float GetMaiBugAdjustMSec(float speedValue)
         {
             var speedRatio = speedValue / 150f;
             return (speedRatio - 1f) * (-0.5f / speedRatio) * 1.6f * 1000f / 60f;
@@ -79,7 +79,7 @@ namespace Assets.Scripts.Notes
         {
             return GetDefaultMsec(noteSpeedValue);
         }
-        protected float GetDefaultMsec(float speedValue)
+        public static float GetDefaultMsec(float speedValue)
         {
             return 240000f / speedValue;
         }
@@ -87,7 +87,7 @@ namespace Assets.Scripts.Notes
         {
             return GetMoveStartTime(noteSpeedValue);
         }
-        protected float GetMoveStartTime(float speedValue)
+        public static float GetMoveStartTime(float speedValue)
         {
             return GetDefaultMsec(speedValue) - GetMaiBugAdjustMSec(speedValue);
         }
@@ -95,7 +95,7 @@ namespace Assets.Scripts.Notes
         {
             return GetScaleStartTime(noteSpeedValue);
         }
-        protected float GetScaleStartTime(float speedValue)
+        public static float GetScaleStartTime(float speedValue)
         {
             return 2f * GetDefaultMsec(speedValue) - GetMaiBugAdjustMSec(speedValue);
         }
@@ -103,7 +103,7 @@ namespace Assets.Scripts.Notes
         {
             return GetTapDistance(timing, noteSpeedValue);
         }
-        protected float GetTapDistance(float timing, float speedValue)
+        public static float GetTapDistance(float timing, float speedValue)
         {
             var moveStartTime = GetMoveStartTime(speedValue);
             var progress = (moveStartTime + timing * 1000f) / (2f * moveStartTime);
@@ -114,7 +114,7 @@ namespace Assets.Scripts.Notes
         {
             return GetTapScale(timing, noteSpeedValue);
         }
-        protected float GetTapScale(float timing, float speedValue)
+        public static float GetTapScale(float timing, float speedValue)
         {
             return (GetScaleStartTime(speedValue) - MathF.Abs(timing * 1000f)) / GetDefaultMsec(speedValue);
         }

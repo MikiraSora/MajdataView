@@ -1,11 +1,13 @@
 ﻿using Assets.Scripts.Types;
 using System;
+using Assets.Scripts.Notes;
 using UnityEngine;
 #nullable enable
 public class HoldDrop : NoteLongDrop
 {
     public bool isEX;
     public bool isBreak;
+    public float noteSpeedValue = 600f;
 
     public Sprite tapSpr;
     public Sprite holdOnSpr;
@@ -267,8 +269,8 @@ public class HoldDrop : NoteLongDrop
         }
 
         var timing = GetJudgeTiming();
-        var distance = timing * speed + 4.8f;
-        var destScale = distance * 0.4f + 0.51f;
+        var distance = TapBase.GetTapDistance(timing, noteSpeedValue);
+        var destScale = timing < 0f ? TapBase.GetTapScale(timing, noteSpeedValue) : 1f;
         if (destScale < 0f)
         {
             destScale = 0f;
@@ -281,7 +283,7 @@ public class HoldDrop : NoteLongDrop
         spriteRenderer.size = new Vector2(1.22f, 1.4f);
 
         var holdTime = timing - LastFor;
-        var holdDistance = holdTime * speed + 4.8f;
+        var holdDistance = TapBase.GetTapDistance(holdTime, noteSpeedValue);
         if (holdTime >= 0 || 
             holdTime >= 0 && LastFor <= 0.15f)
         {
@@ -306,7 +308,7 @@ public class HoldDrop : NoteLongDrop
 
         if (destScale > 0.3f) tapLine.SetActive(true);
 
-        if (distance < 1.225f)
+        if (destScale < 1f)
         {
             transform.localScale = new Vector3(destScale, destScale);
             spriteRenderer.size = new Vector2(1.22f, 1.42f);
@@ -353,8 +355,8 @@ public class HoldDrop : NoteLongDrop
     private void Update_soflan()
     {
         var timing = GetSoflanTiming();
-        var distance = timing * speed + 4.8f;
-        var destScale = distance * 0.4f + 0.51f;
+        var distance = TapBase.GetTapDistance(timing, noteSpeedValue);
+        var destScale = timing < 0f ? TapBase.GetTapScale(timing, noteSpeedValue) : 1f;
 
         if (destScale < 0f)
             transform.localScale = new Vector3(0f, 0f);
@@ -366,7 +368,7 @@ public class HoldDrop : NoteLongDrop
         holdEndRender.enabled = false;
 
         var holdTime = GetSoflanEndTiming();
-        var holdDistance = holdTime * speed + 4.8f;
+        var holdDistance = TapBase.GetTapDistance(holdTime, noteSpeedValue);
         if (holdTime >= 0 ||
             holdTime >= 0 && LastFor <= 0.15f)
         {
@@ -394,7 +396,7 @@ public class HoldDrop : NoteLongDrop
         else
             tapLine.SetActive(false);
 
-        if (distance < 1.225f)
+        if (destScale < 1f)
         {
             var limitedDestScale = Mathf.Max(0, destScale);
             transform.localScale = new Vector3(limitedDestScale, limitedDestScale);
