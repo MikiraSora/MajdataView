@@ -217,8 +217,8 @@ namespace Assets.Scripts.Notes
             }
 
             spriteRenderer.forceRenderingOff = false;
-            if (isEX) exSpriteRender.forceRenderingOff = false;
-            if (isBreak)
+            if (isEX && !isMine) exSpriteRender.forceRenderingOff = false;
+            if (isBreak && !isMine)
             {
                 var extra = Math.Max(Mathf.Sin(timeProvider.GetFrame() * 0.17f) * 0.5f, 0);
                 spriteRenderer.material.SetFloat("_Brightness", 0.95f + extra);
@@ -260,8 +260,8 @@ namespace Assets.Scripts.Notes
             }
 
             spriteRenderer.forceRenderingOff = false;
-            if (isEX) exSpriteRender.forceRenderingOff = false;
-            if (isBreak)
+            if (isEX && !isMine) exSpriteRender.forceRenderingOff = false;
+            if (isBreak && !isMine)
             {
                 var extra = Math.Max(Mathf.Sin(timeProvider.GetFrame() * 0.17f) * 0.5f, 0);
                 spriteRenderer.material.SetFloat("_Brightness", 0.95f + extra);
@@ -343,10 +343,10 @@ namespace Assets.Scripts.Notes
             if (HttpHandler.IsReloding)
                 return;
             var effectManager = GameObject.Find("NoteEffects").GetComponent<NoteEffectManager>();
-            effectManager.PlayEffect(startPosition, isBreak, judgeResult);
+            effectManager.PlayEffect(startPosition, isBreak && !isMine, judgeResult);
             effectManager.PlayFastLate(startPosition, judgeResult);
             objectCounter.NextNote(startPosition);
-            objectCounter.ReportResult(this, judgeResult, isBreak);
+            objectCounter.ReportResult(this, judgeResult, isBreak && !isMine);
             inputManager.UnbindArea(Check, sensorPos);
         }
     }

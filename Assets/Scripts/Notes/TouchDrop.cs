@@ -57,7 +57,7 @@ public class TouchDrop : TouchBase
             fansSprite[i].sortingOrder += noteSortOrder;
         }
 
-        if (isEach)
+        if (isEach && !isMine)
         {
             SetfanSprite(fanEachSprite);
             fansSprite[4].sprite = pointEachSprite;
@@ -70,6 +70,12 @@ public class TouchDrop : TouchBase
             fansSprite[4].sprite = pointNormalSprite;
             fansSprite[5].sprite = multTouchNormalSprite[0];
             fansSprite[6].sprite = multTouchNormalSprite[1];
+        }
+
+        if (isMine)
+        {
+            foreach (var renderer in fansSprite)
+                ApplyMineVisual(renderer);
         }
 
         justEffect.GetComponent<SpriteRenderer>().sprite = justSprite;

@@ -77,8 +77,8 @@ public class HoldDrop : NoteLongDrop
         anim.enabled = false;
         animator = anim;
 
-        if (isEX) exSpriteRender.color = exEffectTap;
-        if (isEach)
+        if (isEX && !isMine) exSpriteRender.color = exEffectTap;
+        if (isEach && !isMine)
         {
             spriteRenderer.sprite = eachSpr;
             lineSpriteRender.sprite = eachLine;
@@ -86,13 +86,21 @@ public class HoldDrop : NoteLongDrop
             if (isEX) exSpriteRender.color = exEffectEach;
         }
 
-        if (isBreak)
+        if (isBreak && !isMine)
         {
             spriteRenderer.sprite = breakSpr;
             lineSpriteRender.sprite = breakLine;
             holdEndRender.sprite = holdBreakEnd;
             if (isEX) exSpriteRender.color = exEffectBreak;
             spriteRenderer.material = breakMaterial;
+        }
+
+        if (isMine)
+        {
+            ApplyMineVisual(spriteRenderer);
+            ApplyMineVisual(lineSpriteRender);
+            ApplyMineVisual(holdEndRender);
+            ApplyMineVisual(exSpriteRender);
         }
 
         spriteRenderer.forceRenderingOff = true;
@@ -268,7 +276,7 @@ public class HoldDrop : NoteLongDrop
         }
 
         spriteRenderer.forceRenderingOff = false;
-        if (isEX) exSpriteRender.forceRenderingOff = false;
+        if (isEX && !isMine) exSpriteRender.forceRenderingOff = false;
 
         spriteRenderer.size = new Vector2(1.22f, 1.4f);
 
@@ -287,7 +295,7 @@ public class HoldDrop : NoteLongDrop
         tapLine.transform.rotation = transform.rotation;
         holdEffect.transform.position = getPositionFromDistance(4.8f);
 
-        if (isBreak &&
+        if (isBreak && !isMine &&
             !holdAnimStart && 
             !isJudged)
         {
@@ -352,7 +360,7 @@ public class HoldDrop : NoteLongDrop
             transform.localScale = new Vector3(0f, 0f);
 
         spriteRenderer.forceRenderingOff = false;
-        if (isEX) exSpriteRender.forceRenderingOff = false;
+        if (isEX && !isMine) exSpriteRender.forceRenderingOff = false;
 
         spriteRenderer.size = new Vector2(1.22f, 1.4f);
         holdEndRender.enabled = false;
@@ -372,7 +380,7 @@ public class HoldDrop : NoteLongDrop
         tapLine.transform.rotation = transform.rotation;
         holdEffect.transform.position = getPositionFromDistance(4.8f);
 
-        if (isBreak &&
+        if (isBreak && !isMine &&
             !holdAnimStart &&
             !isJudged)
         {
@@ -490,11 +498,11 @@ public class HoldDrop : NoteLongDrop
                 break;
         }
         var effectManager = GameObject.Find("NoteEffects").GetComponent<NoteEffectManager>();
-        effectManager.PlayEffect(startPosition, isBreak, result);
+        effectManager.PlayEffect(startPosition, isBreak && !isMine, result);
         effectManager.PlayFastLate(startPosition, result);
         print($"Hold: {MathF.Round(percent * 100,2)}%\nTotal Len : {MathF.Round(realityHT * 1000,2)}ms");
 
-        objectCounter.ReportResult(this, result, isBreak);
+        objectCounter.ReportResult(this, result, isBreak && !isMine);
         if (!isJudged)
             objectCounter.NextNote(startPosition);
 
@@ -513,9 +521,9 @@ public class HoldDrop : NoteLongDrop
             animator.runtimeAnimatorController = HoldShine;
             animator.enabled = true;
             var sprRenderer = GetComponent<SpriteRenderer>();
-            if (isBreak)
+            if (isBreak && !isMine)
                 sprRenderer.sprite = breakHoldOnSpr;
-            else if (isEach)
+            else if (isEach && !isMine)
                 sprRenderer.sprite = eachHoldOnSpr;
             else
                 sprRenderer.sprite = holdOnSpr;

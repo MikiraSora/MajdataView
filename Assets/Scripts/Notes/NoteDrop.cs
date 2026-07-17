@@ -5,11 +5,15 @@ using UnityEngine;
 #nullable enable
 public class NoteDrop : MonoBehaviour
 {
+    private const string MineMaterialResourcePath = "MineSpriteMaterial";
+    private static Material? mineMaterial;
+
     public int startPosition;
     public float time;
     public int noteSortOrder;
     public float speed = 7;
     public bool isEach;
+    public bool isMine;
 
     protected AudioTimeProvider timeProvider;
 
@@ -25,11 +29,11 @@ public class NoteDrop : MonoBehaviour
     protected ObjectCounter objectCounter;
 
     /// <summary>
-    /// »ñÈ¡µ±Ç°Ê±¿Ì¾àÀëÕı½âÖ¡µÄÊ±¼ä³¤¶È
+    /// è·å–å½“å‰æ—¶åˆ»è·ç¦»æ­£è§£å¸§çš„æ—¶é—´é•¿åº¦
     /// </summary>
     /// <returns>
-    /// µ±Ç°Ê±¿ÌÔÚÕı½âÖ¡ºó·½£¬½á¹ûÎªÕıÊı
-    /// <para>µ±Ç°Ê±¿ÌÔÚÕı½âÖ¡Ç°·½£¬½á¹ûÎª¸ºÊı</para>
+    /// å½“å‰æ—¶åˆ»åœ¨æ­£è§£å¸§åæ–¹ï¼Œç»“æœä¸ºæ­£æ•°
+    /// <para>å½“å‰æ—¶åˆ»åœ¨æ­£è§£å¸§å‰æ–¹ï¼Œç»“æœä¸ºè´Ÿæ•°</para>
     /// </returns>
     protected float GetJudgeTiming() => timeProvider.AudioTime - time;
     protected Vector3 getPositionFromDistance(float distance) => getPositionFromDistance(distance, startPosition);
@@ -40,12 +44,24 @@ public class NoteDrop : MonoBehaviour
             distance * Mathf.Sin((position * -2f + 5f) * 0.125f * Mathf.PI));
     }
 
-    //±äËÙÏà¹Ø
+    // å˜é€Ÿç›¸å…³
     public int soflanGroup;
     public float soflanTime;
     protected float GetSoflanValue(float inputMsec) => SoflanManager.Instance.ConvertAudioTimeToY_PreviewMode(inputMsec, soflanGroup, speed);
     protected float GetSoflanTiming() => (GetSoflanValue(timeProvider.AudioTime * 1000.0f) - soflanTime) / 1000.0f;
     protected virtual bool IsEnableSoflan() => false;
+
+    protected static void ApplyMineVisual(SpriteRenderer renderer)
+    {
+        if (renderer == null)
+            return;
+
+        if (mineMaterial == null)
+            mineMaterial = Resources.Load<Material>(MineMaterialResourcePath);
+
+        if (mineMaterial != null)
+            renderer.sharedMaterial = mineMaterial;
+    }
 }
 
 public class NoteLongDrop : NoteDrop
@@ -60,10 +76,10 @@ public class NoteLongDrop : NoteDrop
     protected bool isAutoTrigger = false;
 
     /// <summary>
-    /// ·µ»ØHoldµÄÊ£Óà³¤¶È
+    /// è¿”å› Hold çš„å‰©ä½™é•¿åº¦
     /// </summary>
     /// <returns>
-    /// HoldÊ£Óà³¤¶È
+    /// Hold å‰©ä½™é•¿åº¦
     /// </returns>
     protected float GetRemainingTime() => MathF.Max(LastFor - GetJudgeTiming(), 0);
 

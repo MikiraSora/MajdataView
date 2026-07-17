@@ -91,7 +91,12 @@ public class WifiDrop : NoteLongDrop,IFlasher
             star_slide[i] = Instantiate(star_slidePrefab, notes);
             spriteRenderer_star[i] = star_slide[i].GetComponent<SpriteRenderer>();
             
-            if (isBreak) spriteRenderer_star[i].sprite = breakStar;
+            if (isMine)
+            {
+                spriteRenderer_star[i].sprite = normalStar;
+                ApplyMineVisual(spriteRenderer_star[i]);
+            }
+            else if (isBreak) spriteRenderer_star[i].sprite = breakStar;
             else if (isEach) spriteRenderer_star[i].sprite = eachStar;
             else spriteRenderer_star[i].sprite = normalStar;
             star_slide[i].transform.rotation = Quaternion.Euler(0, 0, -22.5f * (8 + i + 2 * (startPosition - 1)));
@@ -118,7 +123,7 @@ public class WifiDrop : NoteLongDrop,IFlasher
             slideOK.transform.Rotate(new Vector3(0f, 0f, 180f));
         }
 
-        if (isBreak)
+        if (!isMine && isBreak)
         {
             foreach(var star in star_slide)
             {
@@ -139,7 +144,12 @@ public class WifiDrop : NoteLongDrop,IFlasher
         {
             var sr = slideBars[i].GetComponent<SpriteRenderer>();
 
-            if (isBreak)
+            if (isMine)
+            {
+                sr.sprite = normalSlide[i];
+                ApplyMineVisual(sr);
+            }
+            else if (isBreak)
             {
                 sr.sprite = breakSlide[i];
                 sr.material = breakMaterial;
@@ -566,8 +576,8 @@ public class WifiDrop : NoteLongDrop,IFlasher
                 SetJust();
                 break;
         }
-        objectCounter.ReportResult(this, judgeResult, isBreak);
-        if (isBreak && judgeResult == JudgeType.Perfect)
+        objectCounter.ReportResult(this, judgeResult, isBreak && !isMine);
+        if (isBreak && !isMine && judgeResult == JudgeType.Perfect)
             slideOK.GetComponent<Animator>().runtimeAnimatorController = judgeBreakShine;
         slideOK.SetActive(true);
 

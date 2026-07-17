@@ -117,7 +117,11 @@ public class SlideDrop : NoteLongDrop, IFlasher
         }
         spriteRenderer_star = star_slide.GetComponent<SpriteRenderer>();
 
-        if (isBreak)
+        if (isMine)
+        {
+            ApplyMineVisual(spriteRenderer_star);
+        }
+        else if (isBreak)
         {
             spriteRenderer_star.material = breakMaterial;
             spriteRenderer_star.material.SetFloat("_Brightness", 0.95f);
@@ -153,7 +157,12 @@ public class SlideDrop : NoteLongDrop, IFlasher
             sr.color = new Color(1f, 1f, 1f, 0f);
             sr.sortingOrder = sortIndex--;
             sr.sortingLayerName = "Slide";
-            if (isBreak)
+            if (isMine)
+            {
+                sr.sprite = spriteNormal;
+                ApplyMineVisual(sr);
+            }
+            else if (isBreak)
             {
                 sr.sprite = spriteBreak;
                 sr.material = breakMaterial;
@@ -718,8 +727,8 @@ public class SlideDrop : NoteLongDrop, IFlasher
                     break;
             }
             // 只有组内最后一个Slide完成 才会显示判定条并增加总数
-            objectCounter.ReportResult(this, judgeResult, isBreak);
-            if (isBreak && judgeResult == JudgeType.Perfect)
+            objectCounter.ReportResult(this, judgeResult, isBreak && !isMine);
+            if (isBreak && !isMine && judgeResult == JudgeType.Perfect)
                 slideOK.GetComponent<Animator>().runtimeAnimatorController = judgeBreakShine;
             slideOK.SetActive(true);
         }

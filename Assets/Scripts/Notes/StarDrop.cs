@@ -40,15 +40,15 @@ public class StarDrop : TapBase
         {
             exSpriteRender.sprite = exSpr_Double;
             spriteRenderer.sprite = tapSpr_Double;
-            if (isEX) exSpriteRender.color = exEffectTap;
-            if (isEach)
+            if (isEX && !isMine) exSpriteRender.color = exEffectTap;
+            if (isEach && !isMine)
             {
                 lineSpriteRender.sprite = eachLine;
                 spriteRenderer.sprite = eachSpr_Double;
                 if (isEX) exSpriteRender.color = exEffectEach;
             }
 
-            if (isBreak)
+            if (isBreak && !isMine)
             {
                 lineSpriteRender.sprite = breakLine;
                 spriteRenderer.sprite = breakSpr_Double;
@@ -60,21 +60,28 @@ public class StarDrop : TapBase
         {
             exSpriteRender.sprite = exSpr;
             spriteRenderer.sprite = tapSpr;
-            if (isEX) exSpriteRender.color = exEffectTap;
-            if (isEach)
+            if (isEX && !isMine) exSpriteRender.color = exEffectTap;
+            if (isEach && !isMine)
             {
                 lineSpriteRender.sprite = eachLine;
                 spriteRenderer.sprite = eachSpr;
                 if (isEX) exSpriteRender.color = exEffectEach;
             }
 
-            if (isBreak)
+            if (isBreak && !isMine)
             {
                 lineSpriteRender.sprite = breakLine;
                 spriteRenderer.sprite = breakSpr;
                 if (isEX) exSpriteRender.color = exEffectBreak;
                 spriteRenderer.material = breakMaterial;
             }
+        }
+
+        if (isMine)
+        {
+            ApplyMineVisual(spriteRenderer);
+            ApplyMineVisual(lineSpriteRender);
+            ApplyMineVisual(exSpriteRender);
         }
 
         spriteRenderer.forceRenderingOff = true;
@@ -156,12 +163,12 @@ public class StarDrop : TapBase
         if (isNoHead)
         {
             spriteRenderer.forceRenderingOff = true;
-            if (isEX) exSpriteRender.forceRenderingOff = true;
+            if (isEX && !isMine) exSpriteRender.forceRenderingOff = true;
         }
         else
         {
             spriteRenderer.forceRenderingOff = false;
-            if (isEX) exSpriteRender.forceRenderingOff = false;
+            if (isEX && !isMine) exSpriteRender.forceRenderingOff = false;
         }
 
         if (timeProvider.isStart && !isFakeStar)
@@ -217,12 +224,12 @@ public class StarDrop : TapBase
         if (isNoHead)
         {
             spriteRenderer.forceRenderingOff = true;
-            if (isEX) exSpriteRender.forceRenderingOff = true;
+            if (isEX && !isMine) exSpriteRender.forceRenderingOff = true;
         }
         else
         {
             spriteRenderer.forceRenderingOff = false;
-            if (isEX) exSpriteRender.forceRenderingOff = false;
+            if (isEX && !isMine) exSpriteRender.forceRenderingOff = false;
         }
 
         if (timeProvider.isStart && !isFakeStar)

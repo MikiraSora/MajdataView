@@ -18,19 +18,22 @@ public class ObjectCounter : MonoBehaviour
         holdCount == holdSum && 
         slideCount == slideSum && 
         touchCount == touchSum && 
-        breakCount == breakSum;
+        breakCount == breakSum &&
+        mineCount == mineSum;
 
     public int tapCount;
     public int holdCount;
     public int slideCount;
     public int touchCount;
     public int breakCount;
+    public int mineCount;
 
     public int tapSum;
     public int holdSum;
     public int slideSum;
     public int touchSum;
     public int breakSum;
+    public int mineSum;
     private Text rate;
     private Text statusAchievement;
 
@@ -66,6 +69,7 @@ public class ObjectCounter : MonoBehaviour
     Dictionary<JudgeType, int> judgedTouchHoldCount;
     Dictionary<JudgeType, int> judgedSlideCount;
     Dictionary<JudgeType, int> judgedBreakCount;
+    Dictionary<JudgeType, int> judgedMineCount;
     Dictionary<JudgeType, int> totalJudgedCount;
 
     // Start is called before the first frame update
@@ -206,6 +210,7 @@ public class ObjectCounter : MonoBehaviour
             {JudgeType.LateGood, 0 },
             {JudgeType.Miss, 0 },
         };
+        judgedMineCount = totalJudgedCount.ToDictionary(x => x.Key, _ => 0);
     }
 
     // Update is called once per frame
@@ -360,6 +365,37 @@ public class ObjectCounter : MonoBehaviour
                     break;
             }
         }
+        foreach (var judgeResult in judgedMineCount)
+        {
+            var count = judgeResult.Value;
+            switch (judgeResult.Key)
+            {
+                case JudgeType.LatePerfect2:
+                case JudgeType.LatePerfect1:
+                case JudgeType.Perfect:
+                case JudgeType.FastPerfect1:
+                case JudgeType.FastPerfect2:
+                    score += 500 * count;
+                    break;
+                case JudgeType.LateGreat2:
+                case JudgeType.LateGreat1:
+                case JudgeType.LateGreat:
+                case JudgeType.FastGreat:
+                case JudgeType.FastGreat1:
+                case JudgeType.FastGreat2:
+                    score += 400 * count;
+                    lostScore += 100 * count;
+                    break;
+                case JudgeType.LateGood:
+                case JudgeType.FastGood:
+                    score += 250 * count;
+                    lostScore += 250 * count;
+                    break;
+                case JudgeType.Miss:
+                    lostScore += 500 * count;
+                    break;
+            }
+        }
         return new NoteScore()
         {
             TotalScore = score,
@@ -377,7 +413,7 @@ public class ObjectCounter : MonoBehaviour
 
         var currentNoteScore = GetNoteScoreSum();
 
-        totalScore = (tapSum + touchSum) * 500 + holdSum * 1000 + slideSum * 1500 + breakSum * 2500;
+        totalScore = (tapSum + touchSum + mineSum) * 500 + holdSum * 1000 + slideSum * 1500 + breakSum * 2500;
         totalExtraScore = breakSum * 100;
 
         accRate[0] = ((currentNoteScore.TotalScore + currentNoteScore.TotalExtraScoreClassic) / (double)totalScore) * 100;
@@ -389,7 +425,12 @@ public class ObjectCounter : MonoBehaviour
     internal void ReportResult(NoteDrop note, JudgeType result,bool isBreak = false)
     {
         var noteType = GetNoteType(note);
-        switch(noteType)
+        if (note.isMine)
+        {
+            judgedMineCount[result]++;
+            mineCount++;
+        }
+        else switch(noteType)
         {
             case SimaiNoteType.Tap:
                 if (isBreak)
@@ -565,20 +606,21 @@ public class ObjectCounter : MonoBehaviour
 
     private void UpdateSideOutput()
     {
-        var comboN = tapCount + holdCount + slideCount + touchCount + breakCount;
+        var comboN = tapCount + holdCount + slideCount + touchCount + breakCount + mineCount;
 
         table.text = string.Format(
-            "TAP: {0} / {5}\n" +
-            "HOD: {1} / {6}\n" +
-            "SLD: {2} / {7}\n" +
-            "TOH: {3} / {8}\n" +
-            "BRK: {4} / {9}\n" +
-            "ALL: {10} / {11}\n" +
-            "MOD: {12}",
-            tapCount, holdCount, slideCount, touchCount, breakCount,
-            tapSum, holdSum, slideSum, touchSum, breakSum,
+            "TAP: {0} / {6}\n" +
+            "HOD: {1} / {7}\n" +
+            "SLD: {2} / {8}\n" +
+            "TOH: {3} / {9}\n" +
+            "BRK: {4} / {10}\n" +
+            "MIN: {5} / {11}\n" +
+            "ALL: {12} / {13}\n" +
+            "MOD: {14}",
+            tapCount, holdCount, slideCount, touchCount, breakCount, mineCount,
+            tapSum, holdSum, slideSum, touchSum, breakSum, mineSum,
             comboN,
-            tapSum + holdSum + slideSum + touchSum + breakSum,
+            tapSum + holdSum + slideSum + touchSum + breakSum + mineSum,
             InputManager.Mode
         );
 
@@ -662,37 +704,37 @@ public class ObjectCounter : MonoBehaviour
 
     private int FiSumScore()
     {
-        return tapSum * 500 + holdSum * 1000 + slideSum * 1500 + touchSum * 500 + breakSum * 2500;
+        return tapSum * 500 + holdSum * 1000 + slideSum * 1500 + touchSum * 500 + breakSum * 2500 + mineSum * 500;
     }
 
     private int FiNowScore()
     {
-        return tapCount * 500 + holdCount * 1000 + slideCount * 1500 + touchCount * 500 + breakCount * 2600;
+        return tapCount * 500 + holdCount * 1000 + slideCount * 1500 + touchCount * 500 + breakCount * 2600 + mineCount * 500;
     }
 
     private int FiNowBreakScore()
     {
-        return tapSum * 500 + holdSum * 1000 + slideSum * 1500 + touchSum * 500 + breakSum * 2500 + breakCount * 100;
+        return tapSum * 500 + holdSum * 1000 + slideSum * 1500 + touchSum * 500 + breakSum * 2500 + breakCount * 100 + mineSum * 500;
     }
 
     private int DxSumScore()
     {
-        return tapSum * 1 + holdSum * 2 + slideSum * 3 + touchSum * 1 + breakSum * 5;
+        return tapSum * 1 + holdSum * 2 + slideSum * 3 + touchSum * 1 + breakSum * 5 + mineSum * 1;
     }
 
     private int DxNowScore()
     {
-        return tapCount * 1 + holdCount * 2 + slideCount * 3 + touchCount * 1 + breakCount * 5;
+        return tapCount * 1 + holdCount * 2 + slideCount * 3 + touchCount * 1 + breakCount * 5 + mineCount * 1;
     }
 
     private int DxExSumScore()
     {
-        return (tapSum + holdSum + slideSum + touchSum + breakSum) * 3;
+        return (tapSum + holdSum + slideSum + touchSum + breakSum + mineSum) * 3;
     }
 
     private int DxExNowScore()
     {
-        return (tapCount + holdCount + slideCount + touchCount + breakCount) * 3;
+        return (tapCount + holdCount + slideCount + touchCount + breakCount + mineCount) * 3;
     }
 
     private int DeDxNowScore()

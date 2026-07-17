@@ -54,13 +54,19 @@ public class TouchHoldDrop : TouchHoldBase
 
         for (var i = 0; i < 4; i++) fansSprite[i].sprite = TouchHoldSprite[i];
         fansSprite[5].sprite = TouchHoldSprite[4]; // TouchHold Border
-        if (isEach)
+        if (isEach && !isMine)
         {
             fansSprite[4].sprite = TouchPointEachSprite;
         }
         else
         {
             fansSprite[4].sprite = TouchPointSprite;
+        }
+
+        if (isMine)
+        {
+            foreach (var renderer in fansSprite)
+                ApplyMineVisual(renderer);
         }
 
         transform.position = GetAreaPos(startPosition, areaPosition);
