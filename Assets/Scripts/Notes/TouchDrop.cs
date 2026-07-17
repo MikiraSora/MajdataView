@@ -221,7 +221,7 @@ public class TouchDrop : TouchBase
             return;
         }
 
-        if (timing > -0.02f) justEffect.SetActive(true);
+        if (!isMine && timing > -0.02f) justEffect.SetActive(true);
 
         if (-timing <= wholeDuration && -timing > moveDuration)
         {
@@ -271,7 +271,7 @@ public class TouchDrop : TouchBase
             return;
         }
 
-        if (timing > -0.02f) justEffect.SetActive(true);
+        if (!isMine && timing > -0.02f) justEffect.SetActive(true);
 
         if (-timing <= wholeDuration && -timing > moveDuration)
         {
@@ -306,13 +306,14 @@ public class TouchDrop : TouchBase
         if (HttpHandler.IsReloding)
             return;
         multTouchHandler.cancelTouch(this);
-        PlayJudgeEffect();
+        if (!isMine)
+            PlayJudgeEffect();
         if (GroupInfo is not null && judgeResult != JudgeType.Miss)
             GroupInfo.JudgeResult = judgeResult;
         objectCounter.ReportResult(this, judgeResult);
         objectCounter.NextTouch(sensor.Type);
 
-        if (isFirework && judgeResult != JudgeType.Miss)
+        if (!isMine && isFirework && judgeResult != JudgeType.Miss)
         {
             fireworkEffect.SetTrigger("Fire");
             firework.transform.position = transform.position;

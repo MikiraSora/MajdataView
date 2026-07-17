@@ -342,9 +342,12 @@ namespace Assets.Scripts.Notes
         {
             if (HttpHandler.IsReloding)
                 return;
-            var effectManager = GameObject.Find("NoteEffects").GetComponent<NoteEffectManager>();
-            effectManager.PlayEffect(startPosition, isBreak && !isMine, judgeResult);
-            effectManager.PlayFastLate(startPosition, judgeResult);
+            if (!isMine)
+            {
+                var effectManager = GameObject.Find("NoteEffects").GetComponent<NoteEffectManager>();
+                effectManager.PlayEffect(startPosition, isBreak, judgeResult);
+                effectManager.PlayFastLate(startPosition, judgeResult);
+            }
             objectCounter.NextNote(startPosition);
             objectCounter.ReportResult(this, judgeResult, isBreak && !isMine);
             inputManager.UnbindArea(Check, sensorPos);

@@ -389,19 +389,21 @@ public class TouchHoldDrop : TouchHoldBase
         objectCounter.ReportResult(this, result);
         if (!isJudged)
             objectCounter.NextTouch(GetSensor());
-        if (isFirework && result != JudgeType.Miss)
+        if (!isMine && isFirework && result != JudgeType.Miss)
         {
             fireworkEffect.SetTrigger("Fire");
             firework.transform.position = transform.position;
         }
         inputManager.UnbindSensor(Check, GetSensor());
         manager.SetSensorOff(sensor.Type, guid);
-        PlayJudgeEffect(result);
+        if (!isMine)
+            PlayJudgeEffect(result);
     }
 
     protected override void PlayHoldEffect()
     {
-        base.PlayHoldEffect();
+        if (!isMine)
+            base.PlayHoldEffect();
         boarder.sprite = touchHoldBoard;
     }
     void PlayJudgeEffect(JudgeType judgeResult)
@@ -475,7 +477,7 @@ public class TouchHoldDrop : TouchHoldBase
     protected override void StopHoldEffect()
     {
         base.StopHoldEffect();
-        boarder.sprite = touchHoldBoard_Miss;
+        boarder.sprite = isMine ? touchHoldBoard : touchHoldBoard_Miss;
     }
     /// <summary>
     /// 获取当前坐标指定距离的坐标

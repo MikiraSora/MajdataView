@@ -577,9 +577,14 @@ public class WifiDrop : NoteLongDrop,IFlasher
                 break;
         }
         objectCounter.ReportResult(this, judgeResult, isBreak && !isMine);
-        if (isBreak && !isMine && judgeResult == JudgeType.Perfect)
-            slideOK.GetComponent<Animator>().runtimeAnimatorController = judgeBreakShine;
-        slideOK.SetActive(true);
+        if (isMine)
+            Destroy(slideOK);
+        else
+        {
+            if (isBreak && judgeResult == JudgeType.Perfect)
+                slideOK.GetComponent<Animator>().runtimeAnimatorController = judgeBreakShine;
+            slideOK.SetActive(true);
+        }
 
         
         foreach (var sensor in boundSensors)

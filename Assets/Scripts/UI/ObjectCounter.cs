@@ -424,10 +424,13 @@ public class ObjectCounter : MonoBehaviour
     }
     internal void ReportResult(NoteDrop note, JudgeType result,bool isBreak = false)
     {
+        var recordedResult = note.isMine
+            ? result == JudgeType.Miss ? JudgeType.Perfect : JudgeType.Miss
+            : result;
         var noteType = GetNoteType(note);
         if (note.isMine)
         {
-            judgedMineCount[result]++;
+            judgedMineCount[recordedResult]++;
             mineCount++;
         }
         else switch(noteType)
@@ -478,10 +481,10 @@ public class ObjectCounter : MonoBehaviour
                 break;
 
         }
-        totalJudgedCount[result]++;
-        if(result != 0)
+        totalJudgedCount[recordedResult]++;
+        if(recordedResult != JudgeType.Miss)
             combo++;
-        switch (result)
+        switch (recordedResult)
         {
             case JudgeType.Miss:
                 missCount++;
@@ -702,6 +705,11 @@ public class ObjectCounter : MonoBehaviour
         statusDXScore.gameObject.SetActive(isActive && isPtsDeluxe);
     }
 
+    private int SuccessfulMineCount => judgedMineCount != null &&
+                                       judgedMineCount.TryGetValue(JudgeType.Perfect, out var count)
+        ? count
+        : 0;
+
     private int FiSumScore()
     {
         return tapSum * 500 + holdSum * 1000 + slideSum * 1500 + touchSum * 500 + breakSum * 2500 + mineSum * 500;
@@ -709,12 +717,12 @@ public class ObjectCounter : MonoBehaviour
 
     private int FiNowScore()
     {
-        return tapCount * 500 + holdCount * 1000 + slideCount * 1500 + touchCount * 500 + breakCount * 2600 + mineCount * 500;
+        return tapCount * 500 + holdCount * 1000 + slideCount * 1500 + touchCount * 500 + breakCount * 2600 + SuccessfulMineCount * 500;
     }
 
     private int FiNowBreakScore()
     {
-        return tapSum * 500 + holdSum * 1000 + slideSum * 1500 + touchSum * 500 + breakSum * 2500 + breakCount * 100 + mineSum * 500;
+        return tapSum * 500 + holdSum * 1000 + slideSum * 1500 + touchSum * 500 + breakSum * 2500 + breakCount * 100 + SuccessfulMineCount * 500;
     }
 
     private int DxSumScore()
@@ -724,7 +732,7 @@ public class ObjectCounter : MonoBehaviour
 
     private int DxNowScore()
     {
-        return tapCount * 1 + holdCount * 2 + slideCount * 3 + touchCount * 1 + breakCount * 5 + mineCount * 1;
+        return tapCount * 1 + holdCount * 2 + slideCount * 3 + touchCount * 1 + breakCount * 5 + SuccessfulMineCount * 1;
     }
 
     private int DxExSumScore()
@@ -734,7 +742,7 @@ public class ObjectCounter : MonoBehaviour
 
     private int DxExNowScore()
     {
-        return (tapCount + holdCount + slideCount + touchCount + breakCount + mineCount) * 3;
+        return (tapCount + holdCount + slideCount + touchCount + breakCount + SuccessfulMineCount) * 3;
     }
 
     private int DeDxNowScore()

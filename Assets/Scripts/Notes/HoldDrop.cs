@@ -497,9 +497,12 @@ public class HoldDrop : NoteLongDrop
             case AutoPlayMode.Disable:
                 break;
         }
-        var effectManager = GameObject.Find("NoteEffects").GetComponent<NoteEffectManager>();
-        effectManager.PlayEffect(startPosition, isBreak && !isMine, result);
-        effectManager.PlayFastLate(startPosition, result);
+        if (!isMine)
+        {
+            var effectManager = GameObject.Find("NoteEffects").GetComponent<NoteEffectManager>();
+            effectManager.PlayEffect(startPosition, isBreak, result);
+            effectManager.PlayFastLate(startPosition, result);
+        }
         print($"Hold: {MathF.Round(percent * 100,2)}%\nTotal Len : {MathF.Round(realityHT * 1000,2)}ms");
 
         objectCounter.ReportResult(this, result, isBreak && !isMine);
@@ -511,8 +514,11 @@ public class HoldDrop : NoteLongDrop
     }
     protected override void PlayHoldEffect()
     {
-        base.PlayHoldEffect();
-        GameObject.Find("NoteEffects").GetComponent<NoteEffectManager>().ResetEffect(startPosition);
+        if (!isMine)
+        {
+            base.PlayHoldEffect();
+            GameObject.Find("NoteEffects").GetComponent<NoteEffectManager>().ResetEffect(startPosition);
+        }
         if (LastFor <= 0.3)
             return;
         else if (!holdAnimStart && GetJudgeTiming() >= 0.1f)//忽略开头6帧与结尾12帧
