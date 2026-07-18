@@ -424,9 +424,14 @@ public class ObjectCounter : MonoBehaviour
     }
     internal void ReportResult(NoteDrop note, JudgeType result,bool isBreak = false)
     {
-        var recordedResult = note.isMine
-            ? result == JudgeType.Miss ? JudgeType.Perfect : JudgeType.Miss
-            : result;
+        var isClassicAutoPlay = InputManager.Mode == AutoPlayMode.Enable;
+        var recordedResult = result;
+        if (note.isMine)
+        {
+            recordedResult = isClassicAutoPlay || result == JudgeType.Miss
+                ? JudgeType.Perfect
+                : JudgeType.Miss;
+        }
         var noteType = GetNoteType(note);
         if (note.isMine)
         {
