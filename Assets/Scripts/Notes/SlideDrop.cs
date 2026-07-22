@@ -75,6 +75,18 @@ public class SlideDrop : NoteLongDrop, IFlasher
     bool isInitialized = false; //防止重复初始化
     bool isDestroying = false; // 防止重复销毁
 
+    // === 变速(Soflan)相关 ===
+    // soflan 纯视觉: 仅驱动星星/轨道的显示/隐藏/移动/旋转; 判定/计分/DJAuto触发/销毁一律锚真实时间
+    float beginTime;            // = timeStart + fadeInTime, Slide 视觉生命周期起点(真实时间)
+    bool soflanEnabled = false; // 本谱面是否含 soflan
+    // 预计算的 soflan-Y 锚点(单位: soflan-Y, 由 SoflanManager.ConvertAudioTimeToY_PreviewMode 得到)
+    float soflanBegin;      // soflan(beginTime)
+    float soflanFullFadeY;  // soflan(timeStart + fullFadeInTime), 轨道淡入完成点
+    float soflanTimeStartY; // soflan(timeStart)
+    float soflanMoveStartY; // soflan(time)
+    float soflanEnd;        // soflan(time + LastFor)
+    int maxHiddenIndex = -1; // HideBar 单调保护: 已隐藏到的最大 index, 只增不减
+
     /// <summary>
     /// Slide初始化
     /// </summary>
@@ -251,12 +263,37 @@ public class SlideDrop : NoteLongDrop, IFlasher
         _judgeQueue = new(judgeQueue);
 
         parent = ConnectInfo.Parent;
-        if( (ConnectInfo.IsConnSlide && ConnectInfo.IsGroupPartEnd) || 
+        if( (ConnectInfo.IsConnSlide && ConnectInfo.IsGroupPartEnd) ||
             !ConnectInfo.IsConnSlide)
         {
             judgeTiming = time + LastFor * CalJudgeTiming();
         }
 
+        // === Soflan 视觉锚点预计算 ===
+        // beginTime: Slide 视觉起点(判定条开始淡入)
+        beginTime = timeStart + fadeInTime;
+        soflanEnabled = SoflanManager.Instance.containsSoflans();
+        if (soflanEnabled)
+        {
+            // 一次性算好各阶段边界的 soflan-Y 值; 每帧只需再算一次 soflan(audioTime) 与之相减
+            soflanBegin = GetSoflanValue(beginTime * 1000f);
+            soflanFullFadeY = GetSoflanValue((timeStart + fullFadeInTime) * 1000f);
+            soflanTimeStartY = GetSoflanValue(timeStart * 1000f);
+            soflanMoveStartY = GetSoflanValue(time * 1000f);
+            soflanEnd = GetSoflanValue((time + LastFor) * 1000f);
+        }
+    }
+    /// <summary>
+    /// 计算当前 soflan 全局进度 (相对 [beginTime, endTime], 单位无量纲)
+    /// <para>未钳制: 可 &lt;0 (倒退到起点前) 或 &gt;1 (overshoot); 钳制由各阶段自行处理</para>
+    /// </summary>
+    float CurrentSoflanProgress()
+    {
+        var span = soflanEnd - soflanBegin;
+        if (Mathf.Approximately(span, 0f))
+            return 0f;
+        var now = GetSoflanValue(timeProvider.AudioTime * 1000f);
+        return (now - soflanBegin) / span; // Y ÷ Y, 量纲自洽
     }
     /// <summary>
     /// Connection Slide
@@ -376,6 +413,11 @@ public class SlideDrop : NoteLongDrop, IFlasher
                 DestroySelf();
             return;
         }
+        if (soflanEnabled)
+        {
+            Update_soflan();
+            return;
+        }
         // Slide淡入期间，不透明度从0到0.55耗时200ms
         var startiming = timeProvider.AudioTime - timeStart;
         if (startiming <= 0f)
@@ -416,10 +458,91 @@ public class SlideDrop : NoteLongDrop, IFlasher
         }
         else
         {
-            UpdateStar();
+            UpdateStarVisual(RealProcess());
+            UpdateStarLogic();
             Running();
         }
         Check();
+    }
+    /// <summary>
+    /// 变速(soflan)下的视觉更新: 星星/轨道的显隐/移动/旋转全部由 soflan 进度驱动(可逆振荡);
+    /// 判定/自动演示/触发 Sensor 等逻辑仍锚真实时间, 与视觉解耦
+    /// </summary>
+    private void Update_soflan()
+    {
+        fadeInAnimator.enabled = false;
+        var span = soflanEnd - soflanBegin;
+        bool degenerate = Mathf.Approximately(span, 0f);
+        var now = GetSoflanValue(timeProvider.AudioTime * 1000f);
+        float progress = degenerate ? 1f : (now - soflanBegin) / span;
+
+        // 各阶段边界在进度空间的位置
+        float pFullFade  = degenerate ? 0f : (soflanFullFadeY - soflanBegin) / span;
+        float pTimeStart = degenerate ? 0f : (soflanTimeStartY - soflanBegin) / span;
+        float pMoveStart = degenerate ? 0f : (soflanMoveStartY - soflanBegin) / span;
+
+        // === 视觉: 分段钳制 ===
+        if (progress < 0f)
+        {
+            // 倒退到起点之前: 整条轨道 + 星星隐藏
+            setSlideBarAlpha(0f);
+            star_slide.SetActive(false);
+        }
+        else
+        {
+            // 淡入窗口 [0, pFullFade]: 整条轨道统一 alpha 0->1, 之后保持
+            float barAlpha = pFullFade <= 0f ? 1f : Mathf.Clamp01(progress / pFullFade);
+            setSlideBarAlpha(barAlpha);
+            UpdateStarVisual_soflan(progress, pTimeStart, pMoveStart);
+        }
+
+        // === 逻辑: 锚真实时间 ===
+        var realTiming = timeProvider.AudioTime - time;
+        if (realTiming > 0f)
+        {
+            UpdateStarLogic();
+            Running();
+        }
+        Check();
+    }
+    /// <summary>
+    /// soflan 视觉: 依据全局进度决定星星处于 未现/待机/移动/交棒 哪个阶段
+    /// </summary>
+    private void UpdateStarVisual_soflan(float progress, float pTimeStart, float pMoveStart)
+    {
+        if (progress < pTimeStart)
+        {
+            // 判定条已显示, 星星尚未出现
+            star_slide.SetActive(false);
+            return;
+        }
+        star_slide.SetActive(true);
+        if (progress < pMoveStart)
+        {
+            // 待机窗口: 星星在起点渐入(连续段非头部保持透明)
+            canShine = true;
+            float alpha;
+            if (ConnectInfo.IsConnSlide && !ConnectInfo.IsGroupPartHead)
+                alpha = 0f;
+            else
+            {
+                float denom = pMoveStart - pTimeStart;
+                alpha = denom <= 0f ? 1f : Mathf.Clamp01((progress - pTimeStart) / denom);
+            }
+            spriteRenderer_star.color = new Color(1f, 1f, 1f, alpha);
+            star_slide.transform.localScale = new Vector3(alpha + 0.5f, alpha + 0.5f, alpha + 0.5f);
+            star_slide.transform.position = slidePositions[0];
+            applyStarRotation(slideRotations[0]);
+            return;
+        }
+        // 移动窗口: 归一化到 [0,1]
+        float moveDenom = 1f - pMoveStart;
+        float moveP = moveDenom <= 0f ? 1f : (progress - pMoveStart) / moveDenom;
+        // 交棒: 非组尾段 overshoot(>1) 时隐藏自己的星星, 让后段接手; 倒退可回吐
+        if (ConnectInfo.IsConnSlide && !ConnectInfo.IsGroupPartEnd && progress > 1f)
+            spriteRenderer_star.color = new Color(1f, 1f, 1f, 0f);
+        else
+            UpdateStarVisual(moveP);
     }
     public float GetSlideLength()
     {
@@ -501,8 +624,12 @@ public class SlideDrop : NoteLongDrop, IFlasher
     {
         endIndex = endIndex - 1;
         endIndex = Math.Min(endIndex, slideBars.Count - 1);
-        for (int i = 0; i <= endIndex; i++)
+        // 单调保护: 只隐藏尚未击杀的部分, 已击杀的永不复现(soflan 倒退也不会点回来)
+        if (endIndex <= maxHiddenIndex)
+            return;
+        for (int i = maxHiddenIndex + 1; i <= endIndex; i++)
             slideBars[i].SetActive(false);
+        maxHiddenIndex = endIndex;
     }
     /// <summary>
     /// AutoPlay
@@ -518,7 +645,8 @@ public class SlideDrop : NoteLongDrop, IFlasher
             return;
 
         var starRadius = 0.763736616f;
-        var starPos = star_slide.transform.position;
+        // soflan 下星星 transform 是视觉位置(吃变速), DJAuto 触发 Sensor 必须用真实时间逻辑位置
+        var starPos = soflanEnabled ? GetLogicStarPos() : star_slide.transform.position;
         var oldList = new List<Sensor>(triggerSensors);
         triggerSensors.Clear();
         foreach (var s in sensors.Select(x => x.GetComponent<RectTransform>()))
@@ -748,20 +876,70 @@ public class SlideDrop : NoteLongDrop, IFlasher
         isDestroying = true;
     }
     /// <summary>
-    /// 更新引导Star状态
-    /// <para>包括位置，角度</para>
+    /// 引导Star的真实时间进度 (锚真实时间, 供判定/自动演示逻辑使用)
     /// </summary>
-    void UpdateStar()
+    float RealProcess() => MathF.Min((LastFor - GetRemainingTime()) / LastFor, 1);
+    /// <summary>
+    /// 按真实时间进度算出的引导Star逻辑位置
+    /// <para>仅 DJAuto 触发 Sensor 使用; 与 soflan 视觉位置解耦</para>
+    /// </summary>
+    Vector3 GetLogicStarPos()
     {
+        var process = RealProcess();
+        var indexProcess = (slidePositions.Count - 1) * process;
+        var index = (int)indexProcess;
+        var pos = indexProcess - index;
+        if (process >= 1 || index >= slidePositions.Count - 1)
+            return slidePositions.LastOrDefault();
+        var a = slidePositions[index + 1];
+        var b = slidePositions[index];
+        return (a - b) * pos + b;
+    }
+    /// <summary>
+    /// 更新引导Star视觉 (位置/角度/缩放/颜色), 不含任何判定/销毁/跳队列逻辑
+    /// <para><paramref name="process"/> 由调用方决定: 非soflan为真实进度, soflan为钳制后的移动进度</para>
+    /// </summary>
+    void UpdateStarVisual(float process)
+    {
+        if (star_slide == null)
+            return;
         spriteRenderer_star.color = Color.white;
         star_slide.transform.localScale = new Vector3(1.5f, 1.5f, 1.5f);
 
-        var process = MathF.Min((LastFor - GetRemainingTime()) / LastFor, 1);
+        process = Mathf.Clamp01(process);
         var indexProcess = (slidePositions.Count - 1) * process;
         var index = (int)indexProcess;
         var pos = indexProcess - index;
 
-        if(process == 1)
+        if (process >= 1 || index >= slidePositions.Count - 1)
+        {
+            star_slide.transform.position = slidePositions.LastOrDefault();
+            applyStarRotation(slideRotations.LastOrDefault());
+            return;
+        }
+        var a = slidePositions[index + 1];
+        var b = slidePositions[index];
+        star_slide.transform.position = (a - b) * pos + b;
+        if (index < slideRotations.Count - 1)
+        {
+            var _a = slideRotations[index + 1].eulerAngles.z;
+            var _b = slideRotations[index].eulerAngles.z;
+            var dAngle = Mathf.Abs(Mathf.DeltaAngle(_b, _a) * pos);
+            applyStarRotation(Quaternion.Euler(0f, 0f, Mathf.MoveTowardsAngle(_b, _a, dAngle)));
+        }
+    }
+    /// <summary>
+    /// 更新引导Star逻辑 (判定/自动演示/交棒销毁), 全部锚真实时间
+    /// <para>soflan 下由 Update_soflan 每帧照常调用, 与视觉解耦</para>
+    /// </summary>
+    void UpdateStarLogic()
+    {
+        if (star_slide == null)
+            return;
+        var process = RealProcess();
+        var index = (int)((slidePositions.Count - 1) * process);
+
+        if (process >= 1)
         {
             switch (InputManager.Mode)
             {
@@ -771,39 +949,23 @@ public class SlideDrop : NoteLongDrop, IFlasher
                     judgeQueue.Clear();
                     return;
                 case AutoPlayMode.Random:
-                    var barIndex = areaStep[(int)(process * (areaStep.Count - 1))];
-                    HideBar(barIndex);
+                    HideBar(areaStep[(int)(process * (areaStep.Count - 1))]);
                     DestroySelf();
                     judgeQueue.Clear();
                     return;
             }
-            star_slide.transform.position = slidePositions.LastOrDefault();
-            applyStarRotation(slideRotations.LastOrDefault());
+            // 交棒: 非组尾段真实时间走完时销毁自己的星星, 让后段接手
+            // soflan 下不提前销毁(交棒由 alpha 处理, 支持倒退回吐), GameObject 随组尾链式销毁
             if (ConnectInfo.IsConnSlide && !ConnectInfo.IsGroupPartEnd)
-                DestroySelf(true);
+            {
+                if (!soflanEnabled)
+                    DestroySelf(true);
+            }
             else if (isFinished && isJudged)
                 DestroySelf();
+            return;
         }
-        else
-        {
-            var a = slidePositions[index + 1];
-            var b = slidePositions[index];
-            var ba = a - b;
-            var newPos = ba * pos + b;
-
-            star_slide.transform.position = newPos;
-            if (index < slideRotations.Count - 1)
-            {
-                var _a = slideRotations[index + 1].eulerAngles.z;
-                var _b = slideRotations[index].eulerAngles.z;
-                var dAngle = Mathf.DeltaAngle(_b, _a) * pos;
-                dAngle = Mathf.Abs(dAngle);
-                var newRotation = Quaternion.Euler(0f, 0f,
-                                Mathf.MoveTowardsAngle(_b, _a, dAngle));
-                applyStarRotation(newRotation);
-            }
-        } 
-        switch(InputManager.Mode)
+        switch (InputManager.Mode)
         {
             case AutoPlayMode.Enable:
                 judgeQueue = judgeQueue.Skip((int)(process * (judgeQueue.Count - 1))).ToList();
@@ -811,12 +973,11 @@ public class SlideDrop : NoteLongDrop, IFlasher
                 break;
             case AutoPlayMode.Random:
                 judgeQueue = judgeQueue.Skip((int)(process * (judgeQueue.Count - 1))).ToList();
-                var barIndex = areaStep[(int)(process * (areaStep.Count - 1))];
-                HideBar(barIndex);
+                HideBar(areaStep[(int)(process * (areaStep.Count - 1))]);
                 break;
         }
     }
-   
+
     private void setSlideBarAlpha(float alpha)
     {
         foreach (var gm in slideBars) gm.GetComponent<SpriteRenderer>().color = new Color(1f, 1f, 1f, alpha);

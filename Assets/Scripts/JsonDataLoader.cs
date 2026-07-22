@@ -1295,6 +1295,7 @@ public class JsonDataLoader : MonoBehaviour
             SliCompo.isSpecialFlip = isMirror;
         }
         SliCompo.speed = noteSpeed;
+        SliCompo.soflanGroup = timing.SoflanGroup; // 变速视觉所需的 soflan 分组
         SliCompo.timeStart = (float)timing.Timing;
         SliCompo.startPosition = note.StartPosition;
         SliCompo.star_slide = slide_star;
