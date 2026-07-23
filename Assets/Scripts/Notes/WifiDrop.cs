@@ -28,6 +28,8 @@ public class WifiDrop : NoteLongDrop,IFlasher
     public bool isBreak;
     public bool isGroupPart;
     public bool isGroupPartEnd;
+    public bool isForceYellowPath;
+    public bool isForceYellowMovingStar;
 
     public int endPosition;
     public int sortIndex;
@@ -97,7 +99,7 @@ public class WifiDrop : NoteLongDrop,IFlasher
                 ApplyMineVisual(spriteRenderer_star[i]);
             }
             else if (isBreak) spriteRenderer_star[i].sprite = breakStar;
-            else if (isEach) spriteRenderer_star[i].sprite = eachStar;
+            else if (ForceYellowAppearance.UsesEachVisual(isEach, isForceYellowMovingStar)) spriteRenderer_star[i].sprite = eachStar;
             else spriteRenderer_star[i].sprite = normalStar;
             star_slide[i].transform.rotation = Quaternion.Euler(0, 0, -22.5f * (8 + i + 2 * (startPosition - 1)));
             //SlidePositionEnd[i] = getPositionFromDistance(4.8f, i + 3 + startPosition);
@@ -158,7 +160,7 @@ public class WifiDrop : NoteLongDrop,IFlasher
                 controller.parent = this;
                 controller.enabled = true;
             }
-            else if (isEach)
+            else if (ForceYellowAppearance.UsesEachVisual(isEach, isForceYellowPath))
             {
                 sr.sprite = eachSlide[i];
             }

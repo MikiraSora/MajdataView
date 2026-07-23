@@ -80,7 +80,7 @@ public class HoldDrop : NoteLongDrop
         animator = anim;
 
         if (isEX && !isMine) exSpriteRender.color = exEffectTap;
-        if (isEach && !isMine)
+        if (ForceYellowAppearance.UsesEachVisual(isEach, isForceYellow) && !isMine)
         {
             spriteRenderer.sprite = eachSpr;
             lineSpriteRender.sprite = eachLine;
@@ -539,7 +539,7 @@ public class HoldDrop : NoteLongDrop
                 animator.enabled = true;
                 if (isBreak)
                     sprRenderer.sprite = breakHoldOnSpr;
-                else if (isEach)
+                else if (ForceYellowAppearance.UsesEachVisual(isEach, isForceYellow))
                     sprRenderer.sprite = eachHoldOnSpr;
                 else
                     sprRenderer.sprite = holdOnSpr;

@@ -13,6 +13,7 @@ public class NoteDrop : MonoBehaviour
     public int noteSortOrder;
     public float speed = 7;
     public bool isEach;
+    public bool isForceYellow;
     public bool isMine;
 
     protected AudioTimeProvider timeProvider;

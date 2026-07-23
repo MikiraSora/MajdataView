@@ -13,6 +13,9 @@ public class SlideDrop : NoteLongDrop, IFlasher
     public Sprite spriteNormal;
     public Sprite spriteEach;
     public Sprite spriteBreak;
+    public Sprite starSpriteNormal;
+    public Sprite starSpriteEach;
+    public Sprite starSpriteBreak;
     public RuntimeAnimatorController slideShine;
     public RuntimeAnimatorController judgeBreakShine;
     public GameObject parent;
@@ -21,6 +24,8 @@ public class SlideDrop : NoteLongDrop, IFlasher
     public bool isJustR;
     public bool isSpecialFlip; // fixes known star problem
     public bool isBreak;
+    public bool isForceYellowPath;
+    public bool isForceYellowMovingStar;
 
     public float timeStart;
 
@@ -131,15 +136,25 @@ public class SlideDrop : NoteLongDrop, IFlasher
 
         if (isMine)
         {
+            spriteRenderer_star.sprite = starSpriteNormal;
             ApplyMineVisual(spriteRenderer_star);
         }
         else if (isBreak)
         {
+            spriteRenderer_star.sprite = starSpriteBreak;
             spriteRenderer_star.material = breakMaterial;
             spriteRenderer_star.material.SetFloat("_Brightness", 0.95f);
             var controller = star_slide.AddComponent<BreakShineController>();
             controller.enabled = true;
             controller.parent = this;
+        }
+        else if (ForceYellowAppearance.UsesEachVisual(isEach, isForceYellowMovingStar))
+        {
+            spriteRenderer_star.sprite = starSpriteEach;
+        }
+        else
+        {
+            spriteRenderer_star.sprite = starSpriteNormal;
         }
 
         for (var i = 0; i < transform.childCount - 1; i++) slideBars.Add(transform.GetChild(i).gameObject);
@@ -186,7 +201,7 @@ public class SlideDrop : NoteLongDrop, IFlasher
                 //anim.enabled = false;
                 //animators.Add(anim);
             }
-            else if (isEach)
+            else if (ForceYellowAppearance.UsesEachVisual(isEach, isForceYellowPath))
             {
                 sr.sprite = spriteEach;
             }

@@ -41,7 +41,7 @@ public class StarDrop : TapBase
             exSpriteRender.sprite = exSpr_Double;
             spriteRenderer.sprite = tapSpr_Double;
             if (isEX && !isMine) exSpriteRender.color = exEffectTap;
-            if (isEach && !isMine)
+            if (ForceYellowAppearance.UsesEachVisual(isEach, isForceYellow) && !isMine)
             {
                 lineSpriteRender.sprite = eachLine;
                 spriteRenderer.sprite = eachSpr_Double;
@@ -61,7 +61,7 @@ public class StarDrop : TapBase
             exSpriteRender.sprite = exSpr;
             spriteRenderer.sprite = tapSpr;
             if (isEX && !isMine) exSpriteRender.color = exEffectTap;
-            if (isEach && !isMine)
+            if (ForceYellowAppearance.UsesEachVisual(isEach, isForceYellow) && !isMine)
             {
                 lineSpriteRender.sprite = eachLine;
                 spriteRenderer.sprite = eachSpr;

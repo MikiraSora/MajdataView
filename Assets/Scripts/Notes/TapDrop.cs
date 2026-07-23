@@ -12,7 +12,7 @@ public class TapDrop : TapBase
         exSpriteRender.sprite = exSpr;
 
         if (isEX && !isMine) exSpriteRender.color = exEffectTap;
-        if (isEach && !isMine)
+        if (ForceYellowAppearance.UsesEachVisual(isEach, isForceYellow) && !isMine)
         {
             spriteRenderer.sprite = eachSpr;
             lineSpriteRender.sprite = eachLine;

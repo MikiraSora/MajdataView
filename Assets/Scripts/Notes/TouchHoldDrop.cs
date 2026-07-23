@@ -54,7 +54,7 @@ public class TouchHoldDrop : TouchHoldBase
 
         for (var i = 0; i < 4; i++) fansSprite[i].sprite = TouchHoldSprite[i];
         fansSprite[5].sprite = TouchHoldSprite[4]; // TouchHold Border
-        if (isEach && !isMine)
+        if (ForceYellowAppearance.UsesEachVisual(isEach, isForceYellow) && !isMine)
         {
             fansSprite[4].sprite = TouchPointEachSprite;
         }

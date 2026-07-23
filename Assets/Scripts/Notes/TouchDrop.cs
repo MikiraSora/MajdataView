@@ -57,7 +57,7 @@ public class TouchDrop : TouchBase
             fansSprite[i].sortingOrder += noteSortOrder;
         }
 
-        if (isEach && !isMine)
+        if (ForceYellowAppearance.UsesEachVisual(isEach, isForceYellow) && !isMine)
         {
             SetfanSprite(fanEachSprite);
             fansSprite[4].sprite = pointEachSprite;

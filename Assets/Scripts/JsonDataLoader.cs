@@ -9,6 +9,7 @@ using UnityEngine.UI;
 using System.Threading.Tasks;
 using System.Collections;
 using System.Diagnostics;
+using System.IO;
 using Assets.Scripts;
 using MajSimai;
 
@@ -485,6 +486,11 @@ public class JsonDataLoader : MonoBehaviour
                 if (jsonLoaderTask is null || !jsonLoaderTask.IsCompleted)
                     return;
                 loadedData = jsonLoaderTask.Result;
+                if (!TryValidateForceYellowData(loadedData.timingList))
+                {
+                    State = NoteLoaderStatus.Finished;
+                    return;
+                }
                 diffText.text = loadedData.difficulty;
                 levelText.text = loadedData.level;
                 titleText.text = loadedData.title;
@@ -590,6 +596,7 @@ public class JsonDataLoader : MonoBehaviour
                         if (simultaneousNotes.Count(o => !o.IsMine) > 1 && !note.IsMine) NDCompo.isEach = true;
                         NDCompo.isBreak = note.IsBreak;
                         NDCompo.isEX = note.IsEx;
+                        NDCompo.isForceYellow = note.IsForceYellow;
                         NDCompo.isMine = note.IsMine;
                         NDCompo.time = (float)timing.Timing;
                         NDCompo.startPosition = note.StartPosition;
@@ -629,6 +636,7 @@ public class JsonDataLoader : MonoBehaviour
                         NDCompo.noteSpeedValue = noteSpeedValue;
                         NDCompo.isEX = note.IsEx;
                         NDCompo.isBreak = note.IsBreak;
+                        NDCompo.isForceYellow = note.IsForceYellow;
                         NDCompo.isMine = note.IsMine;
                         NDCompo.soflanGroup = timing.SoflanGroup;
                         NDCompo.soflanTime = (float)SoflanManager.Instance.ConvertAudioTimeToY_PreviewMode(NDCompo.time * 1000, timing.SoflanGroup, noteSpeed);
@@ -654,6 +662,7 @@ public class JsonDataLoader : MonoBehaviour
                         NDCompo.soflanTime = (float)SoflanManager.Instance.ConvertAudioTimeToY_PreviewMode(NDCompo.time * 1000, timing.SoflanGroup, touchSpeed);
 
                         if (simultaneousNotes.Count(o => !o.IsMine) > 1 && !note.IsMine) NDCompo.isEach = true;
+                        NDCompo.isForceYellow = note.IsForceYellow;
                         NDCompo.isMine = note.IsMine;
 
                         Array.Copy(customSkin.TouchHold, NDCompo.TouchHoldSprite, 5);
@@ -690,6 +699,7 @@ public class JsonDataLoader : MonoBehaviour
                         }
                         NDCompo.speed = touchSpeed;
                         NDCompo.isFirework = note.IsHanabi;
+                        NDCompo.isForceYellow = note.IsForceYellow;
                         NDCompo.isMine = note.IsMine;
                         NDCompo.GroupInfo = null;
                     }
@@ -797,6 +807,41 @@ public class JsonDataLoader : MonoBehaviour
     private static long GetTimingKey(double timing)
     {
         return (long)Math.Round(timing / TIMING_EPSILON);
+    }
+
+    private bool TryValidateForceYellowData(IEnumerable<SimaiTimingPoint> timings)
+    {
+        foreach (var timing in timings)
+        {
+            foreach (var note in timing.Notes)
+            {
+                try
+                {
+                    var segmentIndices = note.ForceYellowSlideSegmentIndices;
+                    if (note.Type == SimaiNoteType.Slide)
+                    {
+                        var segmentCount = ForceYellowAppearance.CountSlideSegments(note.RawContent);
+                        _ = ForceYellowAppearance.ResolveSlide(
+                            note.IsForceYellow,
+                            segmentCount,
+                            segmentIndices,
+                            note.RawContent);
+                    }
+                    else
+                    {
+                        ForceYellowAppearance.ValidateNonSlideIndices(segmentIndices, note.RawContent);
+                    }
+                }
+                catch (InvalidDataException e)
+                {
+                    GameObject.Find("ErrText").GetComponent<Text>().text =
+                        "在第" + (timing.RawTextPositionY + 1) + "行发现问题：\n" + e.Message;
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 
     public void LoadJson(string json, float ignoreOffset)
@@ -973,15 +1018,25 @@ public class JsonDataLoader : MonoBehaviour
                 throw new Exception("组合星星有错误\nwSLIDE CHAIN ERROR");
             }
 
-        subSlide.ForEach(o =>
+        var forceYellowAppearance = ForceYellowAppearance.ResolveSlide(
+            note.IsForceYellow,
+            subSlide.Count,
+            note.ForceYellowSlideSegmentIndices,
+            note.RawContent);
+        for (var i = 0; i < subSlide.Count; i++)
         {
+            var o = subSlide[i];
             o.IsBreak = note.IsBreak;
             o.IsEx = note.IsEx;
             o.IsMine = note.IsMine;
             o.IsSlideBreak = note.IsSlideBreak;
             o.IsMineSlide = note.IsMineSlide;
             o.IsSlideNoHead = true;
-        });
+            o.IsForceYellow = forceYellowAppearance.MovingStarsAreForceYellow;
+            o.ForceYellowSlideSegmentIndices = forceYellowAppearance.PathSegmentsAreForceYellow[i]
+                ? new[] { 0 }
+                : Array.Empty<int>();
+        }
         subSlide[0].IsSlideNoHead = note.IsSlideNoHead;
 
         if (specTimeFlag == 1 || specTimeFlag == 0)
@@ -1087,6 +1142,11 @@ public class JsonDataLoader : MonoBehaviour
 
     private GameObject InstantiateWifi(SimaiTimingPoint timing, SimaiNote note, SimaiNote[] simultaneousNotes)
     {
+        var forceYellowAppearance = ForceYellowAppearance.ResolveSlide(
+            note.IsForceYellow,
+            1,
+            note.ForceYellowSlideSegmentIndices,
+            note.RawContent);
         var str = note.RawContent.Substring(0, 3);
         var digits = str.Split('w');
         var startPos = int.Parse(digits[0]);
@@ -1120,6 +1180,7 @@ public class JsonDataLoader : MonoBehaviour
         NDCompo.rotateSpeed = (float)note.SlideTime;
         NDCompo.isEX = note.IsEx;
         NDCompo.isBreak = note.IsBreak;
+        NDCompo.isForceYellow = note.IsForceYellow;
         NDCompo.isMine = note.IsMine;
 
         var slideWifi = Instantiate(slidePrefab[SLIDE_PREFAB_MAP["wifi"]], notes.transform);
@@ -1161,6 +1222,8 @@ public class JsonDataLoader : MonoBehaviour
         }
 
         WifiCompo.isBreak = note.IsSlideBreak;
+        WifiCompo.isForceYellowMovingStar = forceYellowAppearance.MovingStarsAreForceYellow;
+        WifiCompo.isForceYellowPath = forceYellowAppearance.PathSegmentsAreForceYellow[0];
         WifiCompo.isMine = note.IsMineSlide;
 
         NDCompo.isNoHead = note.IsSlideNoHead;
@@ -1188,6 +1251,11 @@ public class JsonDataLoader : MonoBehaviour
 
     private GameObject InstantiateStar(SimaiTimingPoint timing, SimaiNote note, ConnSlideInfo info, SimaiNote[] simultaneousNotes)
     {
+        var forceYellowAppearance = ForceYellowAppearance.ResolveSlide(
+            note.IsForceYellow,
+            1,
+            note.ForceYellowSlideSegmentIndices,
+            note.RawContent);
         var GOnote = Instantiate(starPrefab, notes.transform);
         var NDCompo = GOnote.GetComponent<StarDrop>();
         if (!note.IsSlideNoHead)
@@ -1211,6 +1279,7 @@ public class JsonDataLoader : MonoBehaviour
         NDCompo.rotateSpeed = (float)note.SlideTime;
         NDCompo.isEX = note.IsEx;
         NDCompo.isBreak = note.IsBreak;
+        NDCompo.isForceYellow = note.IsForceYellow;
         NDCompo.isMine = note.IsMine;
 
         string slideShape = detectShapeFromText(note.RawContent);
@@ -1224,7 +1293,6 @@ public class JsonDataLoader : MonoBehaviour
 
         var slide = Instantiate(slidePrefab[slideIndex], notes.transform);
         var slide_star = Instantiate(star_slidePrefab, notes.transform);
-        slide_star.GetComponent<SpriteRenderer>().sprite = customSkin.Star;
         slide_star.SetActive(false);
         slide.SetActive(false);
         NDCompo.slide = slide;
@@ -1234,6 +1302,9 @@ public class JsonDataLoader : MonoBehaviour
         SliCompo.spriteNormal = customSkin.Slide;
         SliCompo.spriteEach = customSkin.Slide_Each;
         SliCompo.spriteBreak = customSkin.Slide_Break;
+        SliCompo.starSpriteNormal = customSkin.Star;
+        SliCompo.starSpriteEach = customSkin.Star_Each;
+        SliCompo.starSpriteBreak = customSkin.Star_Break;
         SliCompo.slideShine = BreakShine;
         SliCompo.breakMaterial = breakMaterial;
         SliCompo.judgeBreakShine = JudgeBreakShine;
@@ -1248,7 +1319,6 @@ public class JsonDataLoader : MonoBehaviour
             if (simultaneousNotes.Where(o => o.Type == SimaiNoteType.Slide && !o.IsMineSlide).Count() > 1)
             {
                 SliCompo.isEach = true;
-                slide_star.GetComponent<SpriteRenderer>().sprite = customSkin.Star_Each;
             }
 
             var count = simultaneousNotes.Where(
@@ -1262,11 +1332,9 @@ public class JsonDataLoader : MonoBehaviour
 
         SliCompo.ConnectInfo = info;
         SliCompo.isBreak = note.IsSlideBreak;
+        SliCompo.isForceYellowMovingStar = forceYellowAppearance.MovingStarsAreForceYellow;
+        SliCompo.isForceYellowPath = forceYellowAppearance.PathSegmentsAreForceYellow[0];
         SliCompo.isMine = note.IsMineSlide;
-        if (note.IsMineSlide)
-            slide_star.GetComponent<SpriteRenderer>().sprite = customSkin.Star;
-        else if (note.IsSlideBreak)
-            slide_star.GetComponent<SpriteRenderer>().sprite = customSkin.Star_Break;
 
         NDCompo.isNoHead = note.IsSlideNoHead;
         NDCompo.time = (float)timing.Timing;

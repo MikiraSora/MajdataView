@@ -18,6 +18,7 @@ ExportedObj/
 Logs/
 .consulo/
 *.csproj
+!Validation~/MajdataView.ForceYellowValidation.csproj
 *.unityproj
 *.sln
 *.suo
@@ -51,3 +52,7 @@ majdata.json
 UserSettings/Layouts/default-2021.dwlt
 UserSettings/Layouts/default-2022.dwlt
 /SFX
+
+# Standalone Force Yellow validation build outputs
+/Validation~/bin/
+/Validation~/obj/
