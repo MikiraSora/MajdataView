@@ -543,6 +543,20 @@ public class SlideDrop : NoteLongDrop, IFlasher
             spriteRenderer_star.color = new Color(1f, 1f, 1f, 0f);
         else
             UpdateStarVisual(moveP);
+
+        // AutoPlay/Random: HideBar 按 soflan 进度驱动, 不用真实时间 process
+        // 这样 HSpeed=0 冻结期间星星和箭头同步静止, HSpeed 恢复后一起继续
+        var clampedMoveP = Mathf.Clamp01(moveP);
+        switch (InputManager.Mode)
+        {
+            case AutoPlayMode.Enable:
+                if (smoothSlideAnime)
+                    HideBar((int)((slidePositions.Count - 1) * clampedMoveP) + 1);
+                break;
+            case AutoPlayMode.Random:
+                HideBar(areaStep[(int)(clampedMoveP * (areaStep.Count - 1))]);
+                break;
+        }
     }
     public float GetSlideLength()
     {
@@ -969,11 +983,12 @@ public class SlideDrop : NoteLongDrop, IFlasher
         {
             case AutoPlayMode.Enable:
                 judgeQueue = judgeQueue.Skip((int)(process * (judgeQueue.Count - 1))).ToList();
-                if (smoothSlideAnime) HideBar(index + 1);
+                // soflan 下 HideBar 改由 Update_soflan 视觉侧按 soflan 进度驱动, 避免真实时间与变速脱节
+                if (smoothSlideAnime && !soflanEnabled) HideBar(index + 1);
                 break;
             case AutoPlayMode.Random:
                 judgeQueue = judgeQueue.Skip((int)(process * (judgeQueue.Count - 1))).ToList();
-                HideBar(areaStep[(int)(process * (areaStep.Count - 1))]);
+                if (!soflanEnabled) HideBar(areaStep[(int)(process * (areaStep.Count - 1))]);
                 break;
         }
     }

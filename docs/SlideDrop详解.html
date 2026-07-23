@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SlideDrop 详解 · 竖式图表</title>
+<style>
+:root{
+  --bg:#0f1220; --panel:#171b2e; --panel2:#1e2440; --line:#2b3358;
+  --txt:#e8ecff; --dim:#9aa4d0; --accent:#5b8cff; --accent2:#8b5bff;
+  --good:#4caf78; --great:#e26fb8; --perf:#ffd34d; --miss:#8892b8;
+  --code:#0b0e1a;
+}
+*{box-sizing:border-box}
+body{margin:0;background:linear-gradient(180deg,#0b0e1a,#0f1220 40%);
+  color:var(--txt);font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;
+  line-height:1.7;padding-bottom:80px}
+.wrap{max-width:960px;margin:0 auto;padding:0 20px}
+header.top{padding:56px 20px 32px;text-align:center}
+header.top h1{font-size:34px;margin:0 0 10px;
+  background:linear-gradient(90deg,var(--accent),var(--accent2));
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+header.top p{color:var(--dim);margin:0;font-size:15px}
+h2.sec{font-size:22px;margin:52px 0 18px;padding-left:14px;
+  border-left:4px solid var(--accent)}
+h3{font-size:17px;color:#c7d0ff;margin:26px 0 10px}
+p{margin:10px 0}
+.dim{color:var(--dim)}
+code{background:var(--code);padding:2px 7px;border-radius:5px;
+  font-family:"Cascadia Code",Consolas,monospace;font-size:13px;color:#9ecbff}
+.tag{display:inline-block;padding:1px 8px;border-radius:20px;font-size:12px;
+  font-weight:600;vertical-align:middle}
+/* 时间量卡片 */
+.vars{display:grid;grid-template-columns:1fr;gap:12px;margin:18px 0}
+.varcard{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  padding:14px 18px;display:flex;gap:14px;align-items:flex-start}
+.varcard .b{font-size:15px;font-weight:700;padding:4px 10px;border-radius:8px;
+  white-space:nowrap;color:#fff}
+.varcard .d{flex:1}
+.vt-start{background:#3a5bd0}.vt-time{background:#8b5bff}.vt-last{background:#c0663a}
+
+/* 竖式时间轴 */
+.timeline{position:relative;margin:30px 0 10px;padding-left:56px}
+.timeline::before{content:"";position:absolute;left:22px;top:6px;bottom:6px;
+  width:3px;background:linear-gradient(180deg,var(--accent),var(--accent2))}
+.tl-node{position:relative;margin:0 0 26px}
+.tl-node .dot{position:absolute;left:-44px;top:2px;width:20px;height:20px;
+  border-radius:50%;background:var(--panel2);border:3px solid var(--accent);
+  box-shadow:0 0 0 4px rgba(91,140,255,.12)}
+.tl-node .mark{position:absolute;left:-210px;top:1px;width:158px;text-align:right;
+  font-size:11.5px;color:var(--dim);font-family:monospace;line-height:1.5;
+  word-break:break-word}
+.tl-node .mark b{color:#c7d0ff;font-weight:600}
+.tl-node .card{background:var(--panel);border:1px solid var(--line);
+  border-radius:12px;padding:14px 18px}
+.tl-node .card h4{margin:0 0 6px;font-size:16px}
+.tl-node .card p{margin:6px 0;font-size:14px}
+.timeline.hastime{padding-left:226px}
+.phase-badge{font-size:12px;font-weight:600;padding:2px 9px;border-radius:6px;
+  margin-left:8px;background:var(--panel2);color:var(--accent)}
+
+/* 星星轨迹示意 */
+.track{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  padding:20px;margin:18px 0}
+.track-row{display:flex;align-items:center;gap:0;margin:14px 0 6px}
+.pt{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;font-weight:700;font-size:14px;flex-shrink:0;
+  border:2px solid var(--accent);background:var(--panel2);color:#fff;z-index:2}
+.seg{flex:1;height:6px;background:linear-gradient(90deg,var(--accent),var(--accent2));
+  position:relative;border-radius:3px}
+.seg .star{position:absolute;top:-11px;left:40%;font-size:20px;
+  filter:drop-shadow(0 0 6px var(--perf))}
+.seg .lbl{position:absolute;top:12px;left:50%;transform:translateX(-50%);
+  font-size:12px;color:var(--dim);white-space:nowrap}
+.legend{display:flex;flex-wrap:wrap;gap:16px;margin-top:16px;font-size:13px;
+  color:var(--dim)}
+.legend span::before{content:"";display:inline-block;width:12px;height:12px;
+  border-radius:3px;margin-right:6px;vertical-align:middle}
+
+/* 判定表 */
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left}
+th{background:var(--panel2);color:#c7d0ff}
+td code{font-size:12px}
+tr:nth-child(even) td{background:rgba(255,255,255,.02)}
+
+/* 提示框 */
+.note{background:var(--panel2);border-left:4px solid var(--accent2);
+  border-radius:0 10px 10px 0;padding:12px 16px;margin:16px 0;font-size:14px}
+.note.key{border-color:var(--perf)}
+.note b{color:#fff}
+.srcref{font-size:12px;color:var(--miss);font-family:monospace}
+
+/* 连续星星流程 */
+.flow{display:flex;flex-direction:column;gap:0;margin:20px 0}
+.flow-step{display:flex;gap:16px;align-items:stretch}
+.flow-step .idx{width:30px;height:30px;border-radius:50%;flex-shrink:0;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
+.flow-step .body{flex:1;background:var(--panel);border:1px solid var(--line);
+  border-radius:12px;padding:12px 16px;margin-bottom:12px}
+.flow-step .body h4{margin:0 0 5px;font-size:15px}
+.flow-step .body p{margin:4px 0;font-size:13.5px}
+.connector{width:30px;display:flex;justify-content:center}
+.connector::before{content:"";width:2px;background:var(--line);flex:1;
+  margin:-6px 0}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>SlideDrop 全流程详解</h1>
+  <p>引导星星的出现 · 待机 · 移动 · 判定 · 连续星星接力 — 竖式图表版</p>
+</header>
+<div class="wrap">
+
+<h2 class="sec">一、三个核心时间量</h2>
+<p>SlideDrop 的所有行为都由三个时间量驱动，赋值位于 <span class="srcref">JsonDataLoader.cs:1298 附近</span>。理解它们就理解了一切。</p>
+<div class="vars">
+  <div class="varcard">
+    <span class="b vt-start">timeStart</span>
+    <div class="d"><b>= timing.Timing</b>：slide 头部那颗 tap 星所在的<b>节拍点时刻</b>，也是判定条轨道"应当完全显示"的时刻。</div>
+  </div>
+  <div class="varcard">
+    <span class="b vt-time">time</span>
+    <div class="d"><b>= note.SlideStartTime</b>：引导星星<b>开始移动</b>的时刻。通常晚于 timeStart，中间那段是星星停在起点闪烁的待机时间。</div>
+  </div>
+  <div class="varcard">
+    <span class="b vt-last">LastFor</span>
+    <div class="d"><b>= note.SlideTime</b>：引导星星从起点匀速滑到终点的<b>移动时长</b>（时值）。</div>
+  </div>
+</div>
+<div class="note">
+  代码注释原话（<span class="srcref">SlideDrop.cs:330</span>）：<code>time</code> 是 Slide 启动的时间点，<code>timeStart</code> 是 Slide 完全显示但未启动，<code>LastFor</code> 是 Slide 的时值。
+</div>
+<h2 class="sec">二、单条 Slide 的生命周期（竖式时间轴）</h2>
+<p class="dim">下面按时间从上往下推进。左侧标注的是各关键节点的时刻表达式（相对 timeStart / time，不依赖具体流速）。</p>
+<div class="timeline hastime">
+
+  <div class="tl-node">
+    <div class="mark"><b>timeStart</b><br>+ fadeInTime</div>
+    <div class="dot"></div>
+    <div class="card">
+      <h4>判定条开始淡入 <span class="phase-badge">阶段①</span></h4>
+      <p>轨道箭头（slideBars）先于星星出现。<code>fadeInTime = -3.926913 / speed</code>（负值，流速 speed 越大绝对值越小）。当 <code>AudioTime − timeStart</code> 到达 <code>fadeInTime</code> 时启用淡入动画。</p>
+      <p class="srcref">SlideDrop.cs:188 Initialize() / Update():388</p>
+    </div>
+  </div>
+
+  <div class="tl-node">
+    <div class="mark"><b>timeStart</b><br>+ fullFadeInTime</div>
+    <div class="dot"></div>
+    <div class="card">
+      <h4>判定条完全显示</h4>
+      <p><code>fullFadeInTime = min(fadeInTime + 0.2, 0)</code>。淡入区间 <code>interval = fullFadeInTime − fadeInTime</code>，动画在此区间内把透明度从 0 拉到完全不透明；当 interval 小于 0.2s 时按 <code>animator.speed = 0.2/interval</code> 加快动画挤进去。这一步对应源码注释"8.0 速提前 300ms 显示 Slide"。</p>
+    </div>
+  </div>
+
+  <div class="tl-node">
+    <div class="mark"><b>timeStart</b><br>(节拍点)</div>
+    <div class="dot" style="border-color:#8b5bff"></div>
+    <div class="card">
+      <h4>引导星星登场 + 待机渐入 <span class="phase-badge">阶段②</span></h4>
+      <p>过了节拍点，<code>star_slide.SetActive(true)</code>。此时 <code>timing = AudioTime − time ≤ 0</code>，星星钉在起点：透明度 <code>alpha = 1 −(−timing)/(time−timeStart)</code> 由 0 渐入到 1，缩放 <code>alpha+0.5</code> 从 0.5 放大到 1.5。break 星此刻起可发光（canShine）。</p>
+      <p class="srcref">SlideDrop.cs:398–416</p>
+    </div>
+  </div>
+
+  <div class="tl-node">
+    <div class="mark"><b>time</b><br>(SlideStartTime)</div>
+    <div class="dot" style="border-color:#8b5bff"></div>
+    <div class="card">
+      <h4>星星起步，开始移动 <span class="phase-badge">阶段③</span></h4>
+      <p>待机结束（待机时长 = <code>time − timeStart</code>）。进入 <code>UpdateStar()</code>，进度 <code>process = min((AudioTime−time)/LastFor, 1)</code> 从 0 到 1，沿预计算路径点 <code>slidePositions</code> 线性插值定位，并按 <code>slideRotations</code> 插值朝向运动方向。移动期间星星恒为白色、缩放 1.5。</p>
+      <p class="srcref">SlideDrop.cs:754 UpdateStar()</p>
+    </div>
+  </div>
+
+  <div class="tl-node">
+    <div class="mark"><b>judgeTiming</b><br>= time + LastFor<br>· CalJudgeTiming()</div>
+    <div class="dot" style="border-color:#ffd34d"></div>
+    <div class="card">
+      <h4>进入最后判定区 → 正解帧 <span class="phase-badge">阶段④</span></h4>
+      <p><code>judgeTiming = time + LastFor · CalJudgeTiming()</code>，<code>CalJudgeTiming()</code> 从 0.85 进度往后扫，找星星刚进最后判定区的进度（约 0.85~0.9）作为判定时刻。这一刻决定 Perfect / Great / Good 与 Fast / Late。</p>
+      <p class="srcref">SlideDrop.cs:549 Judge() / 634 CalJudgeTiming()</p>
+    </div>
+  </div>
+
+  <div class="tl-node">
+    <div class="mark"><b>time + LastFor</b></div>
+    <div class="dot" style="border-color:#ffd34d"></div>
+    <div class="card">
+      <h4>走到终点</h4>
+      <p><code>process == 1</code>，星星到达路径末点 <code>slidePositions.Last()</code>。停留时间 <code>stayTime = (time+LastFor) − judgeTiming</code>（进最后判定区到走完的余量）。</p>
+    </div>
+  </div>
+
+  <div class="tl-node">
+    <div class="mark">arriveTime<br>+ 0.8·stayTime</div>
+    <div class="dot" style="border-color:#4caf78"></div>
+    <div class="card">
+      <h4>销毁并计分</h4>
+      <p>星星到终点后再停留约 <code>stayTime·0.8</code> 才 <code>DestroySelf()</code>。<code>OnDestroy()</code> 显示判定条 slideOK（break 且 Perfect 换 judgeBreakShine 特效），<code>ReportResult()</code> 计入总数与成绩。若超时（<code>&gt; time+LastFor+0.6</code>）则 TooLateJudge：剩 1 区判 LateGood，否则 Miss。</p>
+      <p class="srcref">SlideDrop.cs:602 / 708 OnDestroy() / 662 TooLateJudge()</p>
+    </div>
+  </div>
+
+</div>
+<h2 class="sec">三、判定区与 skip 机制（移动中的判定行为）</h2>
+<p><code>judgeQueue</code> 是一串按经过顺序排列的判定区（<span class="srcref">JudgeArea.cs</span>）。判定并非按时间隐藏箭头，而是按玩家真正划过的进度：划到哪，<code>HideBar</code> 就隐藏到哪根箭头。</p>
+
+<h3>单个 Area 的完成条件</h3>
+<table>
+  <tr><th>区域类型</th><th>完成条件</th><th>含义</th></tr>
+  <tr><td>非最后一个区</td><td><code>On &amp;&amp; Off</code></td><td>要划入再划出（滑过）</td></tr>
+  <tr><td>最后一个区（IsLast）</td><td><code>On</code></td><td>只要划入即可</td></tr>
+</table>
+
+<h3>Check() 的连带跳过</h3>
+<p>每次取队首 <code>first</code> 与下一个 <code>second</code>。当 <code>first.On</code> 或 <code>first.CanSkip</code> 成立，就连带判定 <code>second</code>：</p>
+<table>
+  <tr><th>情形</th><th>结果</th></tr>
+  <tr><td>second 完成</td><td>一次跳过 <b>2</b> 个判定区</td></tr>
+  <tr><td>second 仅 On</td><td>跳过 <b>1</b> 个判定区</td></tr>
+  <tr><td>first 完成</td><td>跳过 first 自己</td></tr>
+</table>
+<p class="dim">玩家滑得快时可以跳过中间判定区。<span class="srcref">SlideDrop.cs:439 Check()</span></p>
+
+<div class="note key">
+  <b>折返点的特例：</b>折线 / V / 圈形（<code>line3</code> <code>line7</code> <code>circle3</code> <code>L*</code>）的折返判定区，其 <code>CanSkip = ConnectInfo.IsConnSlide</code>。即<b>单独出现时不可跳</b>（强制经过折返点），<b>只有作为连续星星一部分时才可跳</b>。<span class="srcref">SlideDrop.cs:226–245</span>
+</div>
+
+<h3>判定窗口随停留时间动态放大</h3>
+<table>
+  <tr><th>区间</th><th>计算</th></tr>
+  <tr><td>Perfect 基础</td><td><code>0.4666667s</code></td></tr>
+  <tr><td>Perfect 额外</td><td><code>min(stayTime/4, 0.733s)</code></td></tr>
+  <tr><td>Great / Good</td><td>随额外区间增大而<b>收缩</b></td></tr>
+  <tr><td>Fast / Late</td><td><code>diff = judgeTiming − 实际完成时刻</code>，正为 Fast，负为 Late</td></tr>
+</table>
+<h2 class="sec">四、连续星星专题：<code>1-2[4:1]s3[4:1]</code></h2>
+<p>这类连续 slide 在 <span class="srcref">JsonDataLoader.cs:1042–1085</span> 被拼装成一个 <b>Slide Group</b>。示例被拆成两段首尾相接的子 slide：</p>
+
+<div class="track">
+  <div class="track-row">
+    <div class="pt">1</div>
+    <div class="seg"><span class="star">★</span><span class="lbl">-2[4:1] · 1→2 直线</span></div>
+    <div class="pt">2</div>
+    <div class="seg"><span class="lbl">s3[4:1] · 2→3 的 s 形</span></div>
+    <div class="pt">3</div>
+  </div>
+  <div class="legend">
+    <span style="--_:0">位置 2 既是第一段终点，也是第二段起点</span>
+  </div>
+</div>
+
+<div class="flow">
+  <div class="flow-step"><div class="idx">1</div>
+    <div class="body"><h4>分组与角色标记</h4>
+      <p><code>isConn = subSlide.Count != 1</code>（此处为 true）。第一段 <code>IsGroupPartHead=true</code>；最后一段 <code>IsGroupPartEnd=true</code>；每段 <code>ConnectInfo.Parent</code> 指向前一段的 GameObject。</p></div></div>
+  <div class="connector"></div>
+
+  <div class="flow-step"><div class="idx">2</div>
+    <div class="body"><h4>时间按几何长度重新分配（关键）</h4>
+      <p><code>LastFor = (TotalLength / TotalSlideLen) · GetSlideLength()</code>。即使两段都写 <code>[4:1]</code>，也按各自<b>实际弧长占整组总长的比例</b>分配时长——目的是让星星在整条路径上<b>匀速</b>滑行。非头部段起始时刻承接前段：<code>time = parent.time + parent.LastFor</code>。</p>
+      <p class="srcref">SlideDrop.cs:274 Start()</p></div></div>
+  <div class="connector"></div>
+
+  <div class="flow-step"><div class="idx">3</div>
+    <div class="body"><h4>星星"接力"，视觉上只有一颗</h4>
+      <p>非头部段待机阶段 <code>alpha = 0</code>，不显示自己的星。前一段星星到终点（<code>process==1</code>）且非组尾时 <code>DestroySelf(true)</code> <b>只销毁星星</b>，后一段星星紧接着从该点亮起。玩家看到一颗星连贯穿过 1→2→3。</p>
+      <p class="srcref">SlideDrop.cs:402 / 782</p></div></div>
+  <div class="connector"></div>
+
+  <div class="flow-step"><div class="idx">4</div>
+    <div class="body"><h4>整组只结算一次判定</h4>
+      <p>每段最后判定区：组尾 <code>SetIsLast()</code>（只需划入），中间段 <code>SetNonLast()</code>（需划入再划出，作为过渡）。<code>Judge()</code> 开头守卫 <code>if(!IsGroupPartEnd &amp;&amp; IsConnSlide) return</code>——<b>只有组尾段（到 3 那段）</b>真正做判定。OnDestroy 中也只有组尾计入总数，中间段直接删判定条不计分。</p>
+      <p class="srcref">SlideDrop.cs:551 / 708</p></div></div>
+  <div class="connector"></div>
+
+  <div class="flow-step"><div class="idx">5</div>
+    <div class="body"><h4>玩家滑得比引导快时</h4>
+      <p><code>canCheck</code>：头部段到节拍点附近即可判；非头部段要 <code>ParentFinished || ParentPendingFinish</code> 才开判。若某段已被划而前段未完成，<code>Check()</code> 调用 <code>Parent.ForceFinish()</code> <b>强制完成前一段</b>。链式清理时销毁组尾会连带逐级 <code>Destroy(Parent)</code>。</p>
+      <p class="srcref">SlideDrop.cs:337 / 448 / 265</p></div></div>
+</div>
+
+<div class="note key">
+  <b>一句话总结：</b>一条 slide 先在 <code>timeStart + fadeInTime</code> 淡入判定条、<code>timeStart + fullFadeInTime</code> 完全显示，到 <code>timeStart</code> 星星在起点渐入待机，到 <code>time</code> 起步、用 <code>LastFor</code> 匀速滑完路径，在 <code>judgeTiming</code> 附近算判定，走到终点再停留一小段后销毁计分；而 <code>1-2[4:1]s3[4:1]</code> 会被拼成一个 Group——按几何长度重分配各段时长让星星匀速接力穿过，非头段不显示自己的星、中间段只作过渡不计分，<b>整组只结算一次判定</b>。
+</div>
+
+</div><!-- /wrap -->
+</body>
+</html>

@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SlideDrop 变速（Soflan）实现方案 · 竖式图表</title>
+<style>
+:root{
+  --bg:#0d1018; --panel:#161b2b; --panel2:#1d2440; --line:#2b3358;
+  --txt:#e8ecff; --dim:#98a2cc; --accent:#4dc0ff; --accent2:#8b5bff;
+  --sof:#4dc0ff; --real:#ffb454; --kill:#ff5c7a; --ok:#4caf78;
+  --code:#0a0d16;
+}
+*{box-sizing:border-box}
+body{margin:0;background:linear-gradient(180deg,#080a12,#0d1018 40%);
+  color:var(--txt);font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;
+  line-height:1.7;padding-bottom:80px}
+.wrap{max-width:1000px;margin:0 auto;padding:0 22px}
+header.top{padding:56px 20px 30px;text-align:center}
+header.top h1{font-size:32px;margin:0 0 10px;
+  background:linear-gradient(90deg,var(--sof),var(--accent2));
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+header.top p{color:var(--dim);margin:0;font-size:15px}
+h2.sec{font-size:22px;margin:52px 0 16px;padding-left:14px;border-left:4px solid var(--sof)}
+h3{font-size:16.5px;color:#bcd6ff;margin:24px 0 10px}
+p{margin:9px 0}
+.dim{color:var(--dim)}
+code{background:var(--code);padding:2px 7px;border-radius:5px;
+  font-family:"Cascadia Code",Consolas,monospace;font-size:12.5px;color:#9ecbff}
+pre{background:var(--code);border:1px solid var(--line);border-radius:10px;
+  padding:14px 16px;overflow-x:auto;font-family:"Cascadia Code",Consolas,monospace;
+  font-size:12.5px;color:#c9d6ff;line-height:1.55;margin:12px 0}
+pre .c{color:#5f6b99}
+pre .k{color:#ff9ec7}
+pre .f{color:#7fe3a0}
+/* 原则徽章 */
+.badges{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0}
+.pill{padding:5px 12px;border-radius:20px;font-size:13px;font-weight:600;border:1px solid}
+.pill.sof{color:var(--sof);border-color:var(--sof);background:rgba(77,192,255,.08)}
+.pill.real{color:var(--real);border-color:var(--real);background:rgba(255,180,84,.08)}
+.pill.kill{color:var(--kill);border-color:var(--kill);background:rgba(255,92,122,.08)}
+
+/* 竖式进度轴（soflan 全局进度轴示意） */
+.axis{position:relative;margin:26px 0;padding-left:200px}
+.axis::before{content:"";position:absolute;left:170px;top:4px;bottom:4px;width:3px;
+  background:linear-gradient(180deg,var(--sof),var(--accent2))}
+.anode{position:relative;margin:0 0 22px}
+.anode .p{position:absolute;left:-200px;top:0;width:158px;text-align:right;
+  font-family:monospace;font-size:11.5px;color:var(--dim);line-height:1.45}
+.anode .p b{color:#bcd6ff}
+.anode .dot{position:absolute;left:-38px;top:2px;width:18px;height:18px;border-radius:50%;
+  background:var(--panel2);border:3px solid var(--sof);box-shadow:0 0 0 4px rgba(77,192,255,.1)}
+.anode .card{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:12px 16px}
+.anode .card h4{margin:0 0 5px;font-size:15px}
+.anode .card p{margin:5px 0;font-size:13.5px}
+
+/* 两层叠加图 */
+.layers{display:flex;flex-direction:column;gap:10px;margin:18px 0}
+.layer{border:1px solid var(--line);border-radius:11px;padding:13px 16px;background:var(--panel)}
+.layer .h{font-weight:700;font-size:14.5px;margin-bottom:5px;display:flex;align-items:center;gap:8px}
+.layer .dotmark{width:11px;height:11px;border-radius:3px;display:inline-block}
+.layer.sof{border-left:4px solid var(--sof)}
+.layer.kill{border-left:4px solid var(--kill)}
+.layer .rule{font-size:13px;color:var(--dim);margin-top:6px}
+
+/* 解耦对照 */
+.split{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:16px 0}
+.split .col{border:1px solid var(--line);border-radius:11px;padding:13px 16px}
+.split .col.v{border-top:3px solid var(--sof);background:rgba(77,192,255,.04)}
+.split .col.l{border-top:3px solid var(--real);background:rgba(255,180,84,.04)}
+.split .col h4{margin:0 0 8px;font-size:15px}
+.split .col ul{margin:6px 0;padding-left:18px}
+.split .col li{font-size:13px;margin:5px 0}
+@media(max-width:720px){.split{grid-template-columns:1fr}.axis{padding-left:0}
+  .axis::before{left:8px}.anode .p{position:static;width:auto;text-align:left;margin-bottom:4px}
+  .anode{padding-left:34px}.anode .dot{left:0}}
+
+/* 步骤流程 */
+.steps{margin:18px 0}
+.step{display:flex;gap:14px;margin-bottom:12px}
+.step .n{flex-shrink:0;width:30px;height:30px;border-radius:8px;font-weight:700;font-size:14px;
+  display:flex;align-items:center;justify-content:center;color:#fff;
+  background:linear-gradient(135deg,var(--sof),var(--accent2))}
+.step .b{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:12px 16px}
+.step .b h4{margin:0 0 5px;font-size:14.5px}
+.step .b .file{font-family:monospace;font-size:11.5px;color:var(--real)}
+.step .b p{margin:5px 0;font-size:13px}
+
+/* note 提示 */
+.note{background:var(--panel2);border-left:4px solid var(--accent2);border-radius:0 10px 10px 0;
+  padding:12px 16px;margin:15px 0;font-size:13.5px}
+.note.key{border-color:var(--real)}
+.note b{color:#fff}
+.srcref{font-family:monospace;font-size:11.5px;color:#7b86b8}
+
+/* 表 */
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px}
+th,td{border:1px solid var(--line);padding:8px 11px;text-align:left;vertical-align:top}
+th{background:var(--panel2);color:#bcd6ff}
+tr:nth-child(even) td{background:rgba(255,255,255,.02)}
+.chk{color:var(--ok);font-weight:700}
+.non{color:var(--kill);font-weight:700}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>SlideDrop 变速（Soflan）实现方案</h1>
+  <p>视觉吃变速 · 判定锚真实时间 · 竖式图表实现文档</p>
+</header>
+<div class="wrap">
+
+<h2 class="sec">〇、核心原则</h2>
+<div class="badges">
+  <span class="pill sof">soflan = 纯视觉</span>
+  <span class="pill real">判定 / 计分 / DJAuto触发 / 销毁 = 真实时间</span>
+  <span class="pill kill">HideBar 击杀 = 永久</span>
+</div>
+<p>整个方案建立在一条铁律上：<b>soflan 只改"星星画在哪、轨道多亮"，一切决定判定、计分、销毁的判断都读真实时间。</b>二者在代码里彻底解耦，互不污染。</p>
+<div class="note">
+  <b>soflan 函数统一为：</b><code>soflan(x) = SoflanManager.Instance.ConvertAudioTimeToY_PreviewMode(x, soflanGroup)</code>，带帧内缓存（同帧同组只算一次）。返回值在 soflan-Y 空间（速度对时间的积分，量纲 ≈ ms）。
+</div>
+<h2 class="sec">一、进度模型：单一全局进度轴</h2>
+<pre><span class="c">// 端点（真实时间锚点）</span>
+beginTime = timeStart + fadeInTime
+endTime   = time + LastFor
+
+<span class="c">// 每帧只算一次 soflan(audioTime)，与预计算锚点相减</span>
+currentSoflanProgress = normalize(
+    (soflan(audioTime) − soflan(beginTime))
+  / (soflan(endTime)  − soflan(beginTime))   <span class="c">// 分母用 soflan-Y 跨度 → 量纲 Y÷Y，恒在 [0,1]</span>
+)</pre>
+<div class="note key">
+  <b>量纲修正：</b>原始设想分母是 <code>endTime − beginTime</code>（真实秒），与分子的 soflan-Y 空间量纲不匹配。改用 <code>soflan(endTime) − soflan(beginTime)</code> 后分子分母同为 Y 空间，进度天然归一。
+</div>
+
+<h3>normalize：分段钳制（进度冲出 [0,1] 的处理）</h3>
+<div class="axis">
+  <div class="anode">
+    <div class="p"><b>progress &lt; 0</b><br>倒退到 beginTime 之前</div>
+    <div class="dot" style="border-color:#ff5c7a"></div>
+    <div class="card"><h4>整体隐藏</h4>
+      <p>轨道 + 星星 <code>alpha = 0</code>，<code>star_slide.SetActive(false)</code>，直接 return。不在起点残留星星。</p></div>
+  </div>
+  <div class="anode">
+    <div class="p"><b>0 → progress<br>(fullFadeInTime)</b></div>
+    <div class="dot"></div>
+    <div class="card"><h4>淡入窗口（可逆振荡）</h4>
+      <p>整条轨道统一 alpha 随进度渐显；soflan 倒退穿出窗口 → 整条渐隐。星星显隐同窗口逻辑。</p></div>
+  </div>
+  <div class="anode">
+    <div class="p"><b>progress<br>(timeStart→time)</b></div>
+    <div class="dot" style="border-color:#8b5bff"></div>
+    <div class="card"><h4>待机窗口</h4>
+      <p>星星在起点按段内比例算 alpha / scale（0.5→1.5 渐入），可随 soflan 来回。</p></div>
+  </div>
+  <div class="anode">
+    <div class="p"><b>progress<br>(time→endTime)</b></div>
+    <div class="dot" style="border-color:#8b5bff"></div>
+    <div class="card"><h4>移动窗口</h4>
+      <p>沿路径插值位置 + 切线朝向。倒退时星星往回滑、不掉头（切线朝向共用同一 progress）。</p></div>
+  </div>
+  <div class="anode">
+    <div class="p"><b>progress &gt; 1</b><br>overshoot</div>
+    <div class="dot" style="border-color:#4caf78"></div>
+    <div class="card"><h4>钉终点</h4>
+      <p>位置 / 朝向钉在 <code>slidePositions.Last()</code>，等真实时间判定与销毁。</p></div>
+  </div>
+</div>
+<h2 class="sec">二、可见性 = 两层叠加</h2>
+<p>每根箭头（及星星）的最终可见性由两个来源合成，规则：<b>被 HideBar 击杀的永久为 0，否则取 soflan alpha。killed 赢。</b></p>
+<div class="layers">
+  <div class="layer sof">
+    <div class="h"><span class="dotmark" style="background:var(--sof)"></span>soflan alpha 层（appearance）</div>
+    <p>整条轨道 + 星星<b>统一</b>淡入窗口 alpha，随进度可逆，能反复显/隐（振荡）。逐根 alpha 只是实现手段，空间上仍整条统一。</p>
+    <div class="rule">仅作用于 <code>i &gt; maxHiddenIndex</code>（未被击杀）的 bar。</div>
+  </div>
+  <div class="layer kill">
+    <div class="h"><span class="dotmark" style="background:var(--kill)"></span>HideBar 层（判定 / AutoPlay）</div>
+    <p>判定推进 / 自动演示驱动，逐根<b>永久击杀</b>，最高优先级。带单调保护：只增不减，soflan 怎么倒退都不会把已击杀的箭头点回来。</p>
+    <div class="rule">对应最初铁律"被 hideBar 处理过就不再重新显示"。</div>
+  </div>
+</div>
+<pre><span class="k">void</span> <span class="f">HideBar</span>(<span class="k">int</span> endIndex):
+    endIndex = min(endIndex − 1, slideBars.Count − 1)
+    <span class="k">if</span> (endIndex &lt;= maxHiddenIndex) <span class="k">return</span>          <span class="c">// 单调保护</span>
+    <span class="k">for</span> i <span class="k">in</span> (maxHiddenIndex+1 .. endIndex): slideBars[i].SetActive(<span class="k">false</span>)
+    maxHiddenIndex = endIndex</pre>
+
+<h2 class="sec">三、视觉 / 逻辑解耦（最关键的一刀）</h2>
+<p><code>star_slide.transform.position</code> 原本一物两用：既渲染星星，又被 DJAuto 的 <code>Running()</code> 读去触发 Sensor。soflan 一动，DJAuto 就会在错误时刻点 Sensor，判定漂移。必须拆开。</p>
+<div class="split">
+  <div class="col v">
+    <h4>视觉侧 · 吃 soflan</h4>
+    <ul>
+      <li>星星位置 / 朝向 / scale</li>
+      <li>轨道 alpha</li>
+      <li>星星显隐</li>
+    </ul>
+    <p class="dim">驱动量：<code>currentSoflanProgress</code>（可逆）</p>
+  </div>
+  <div class="col l">
+    <h4>逻辑侧 · 锚真实时间</h4>
+    <ul>
+      <li>DJAuto <code>Running()</code> 触发 Sensor（用独立 <code>logicStarPos</code>）</li>
+      <li>Enable/Random 的 <code>DestroySelf</code> / <code>judgeQueue.Skip</code></li>
+      <li>自动演示 HideBar</li>
+    </ul>
+    <p class="dim">驱动量：真实时间 <code>process = (AudioTime−time)/LastFor</code></p>
+  </div>
+</div>
+<div class="note">
+  落地方式：<code>UpdateStar()</code> 一分为二 —— <code>UpdateStarVisual(process)</code> 只做位置/朝向/alpha（soflan 路与真实路各喂各的 process）；<code>UpdateStarLogic()</code> 恒用真实时间 process 处理销毁/跳队列。<code>Running()</code> 不再读 transform，改读真实时间算出的 <code>GetLogicStarPos()</code>。
+</div>
+<h2 class="sec">四、实现步骤（改哪些方法 / 加哪些字段）</h2>
+<div class="steps">
+  <div class="step"><div class="n">1</div><div class="b">
+    <h4>接线 <span class="file">JsonDataLoader.cs · InstantiateStar()</span></h4>
+    <p>在赋 <code>NDCompo.soflanTime</code> 那段旁补 <code>SliCompo.soflanGroup = timing.SoflanGroup;</code>。Wifi 分支不动。soflan 锚点不用单一 soflanTime，由 SlideDrop 自己预计算。</p>
+  </div></div>
+  <div class="step"><div class="n">2</div><div class="b">
+    <h4>新增字段 <span class="file">SlideDrop.cs</span></h4>
+    <pre><span class="k">float</span> soflanBegin, soflanTimeStart, soflanMoveStart, soflanEnd;  <span class="c">// soflan-Y 锚点</span>
+<span class="k">float</span> beginTime;              <span class="c">// = timeStart + fadeInTime</span>
+<span class="k">bool</span>  soflanEnabled;
+<span class="k">int</span>   maxHiddenIndex = −1;    <span class="c">// HideBar 单调保护</span></pre>
+  </div></div>
+  <div class="step"><div class="n">3</div><div class="b">
+    <h4>锚点预计算 <span class="file">Initialize() 末尾</span></h4>
+    <p><code>beginTime = timeStart + fadeInTime</code>；<code>soflanEnabled = containsSoflans()</code>；若启用则一次性算好 <code>soflanBegin / soflanTimeStart / soflanMoveStart / soflanEnd</code>（用带缓存的 <code>GetSoflanValue</code>）。每帧只需再算一次 <code>soflan(audioTime)</code>。</p>
+  </div></div>
+  <div class="step"><div class="n">4</div><div class="b">
+    <h4>Update() 拆双路 <span class="file">Q11</span></h4>
+    <p>开头 <code>if (soflanEnabled) { Update_soflan(); return; }</code>，原逻辑整体保留为非 soflan 路。<code>Update_soflan()</code> 关掉 <code>fadeInAnimator</code>，按 §一分段驱动淡入/待机/移动，<b>视觉部分不含任何 DestroySelf/Skip/Running</b>。</p>
+  </div></div>
+  <div class="step"><div class="n">5</div><div class="b">
+    <h4>UpdateStar() 一分为二 <span class="file">Q12</span></h4>
+    <p><code>UpdateStarVisual(process)</code> 只做位置插值 + 切线朝向 + alpha/scale；<code>UpdateStarLogic()</code> 用真实时间 process 保留 Enable/Random 的销毁、跳队列、smoothSlideAnime 的 HideBar。soflan 路每帧照常调 Logic（真实时间）。</p>
+  </div></div>
+  <div class="step"><div class="n">6</div><div class="b">
+    <h4>HideBar 单调保护 + Running 用逻辑位置 <span class="file">Q3/Q6</span></h4>
+    <p>HideBar 见 §二代码。<code>Running()</code> 不读 <code>transform.position</code>，改读 <code>GetLogicStarPos()</code>（真实 process 插值），DJAuto 触发时刻与真实时间一致。</p>
+  </div></div>
+</div>
+
+<h2 class="sec">五、连续星星（Slide Group）</h2>
+<p>如 <code>1-2[4:1]s3[4:1]</code>，交棒逻辑天然由 alpha 判据处理：</p>
+<ul>
+  <li><b>视觉交棒吃 soflan</b>：非头段进度未进自己移动窗口时 alpha=0，进了才亮；soflan 倒退跨段边界时前段星星能重新亮（回吐）。</li>
+  <li><b>不提前销毁</b>：<code>DestroySelf</code> / <code>OnDestroy</code> / <code>ForceFinish</code> 全维持真实时间，整组延到真实末尾 + 组尾判定完成再一次性 Destroy。代价是各段 GameObject 要活到真实末尾（多几个隐藏对象）。</li>
+</ul>
+
+<h2 class="sec">六、不动的部分 & 验证</h2>
+<table>
+  <tr><th>范畴</th><th>处理</th></tr>
+  <tr><td>FixedUpdate / Judge / CalJudgeTiming / TooLateJudge / OnDestroy / Check / 判定队列</td><td class="chk">零改动（全锚真实时间）</td></tr>
+  <tr><td>非 soflan 谱面路径</td><td class="chk">双路隔离，逐帧与改动前一致</td></tr>
+  <tr><td>WifiDrop</td><td class="non">本轮不做，暂保持真实时间视觉</td></tr>
+</table>
+<div class="note key">
+  <b>验证：</b>① 项目 build 编译通过。② 普通谱面对比改动前逐帧一致（双路隔离）。③ soflan 谱面观察：正放/倒放时轨道与星星显隐<b>振荡</b>、DJAuto 判定<b>不漂移</b>、连续星星跨段<b>回吐</b>。
+</div>
+
+</div><!-- /wrap -->
+</body>
+</html>
