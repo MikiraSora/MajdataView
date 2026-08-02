@@ -9,6 +9,7 @@ public class EachLineDrop : MonoBehaviour
     public float noteSpeedValue = 600f;
     public int soflanGroup;
     public float soflanTime;
+    public bool isSoflanVisible { get; private set; } = true;
 
     public GameObject obj1;
     public GameObject obj2;
@@ -32,18 +33,47 @@ public class EachLineDrop : MonoBehaviour
     private void Update()
     {
         var judgeTiming = timeProvider.AudioTime - time;
-        var timing = judgeTiming;
-        if (SoflanManager.Instance.containsSoflans())
+        if (judgeTiming > 0)
         {
-            var soflanValue = SoflanManager.Instance.ConvertAudioTimeToY_PreviewMode(
-                timeProvider.AudioTime * 1000f,
-                soflanGroup);
-            timing = (soflanValue - soflanTime) / 1000f;
+            Destroy(gameObject);
+            return;
         }
 
-        var distance = TapBase.GetTapDistance(timing, noteSpeedValue);
-        var destScale = TapBase.GetTapScale(timing, noteSpeedValue);
-        if (judgeTiming > 0) Destroy(gameObject);
+        var timing = judgeTiming;
+        var useSoflan = SoflanManager.Instance.containsSoflans();
+        if (useSoflan)
+        {
+            var visibleMsec = 2f * TapBase.GetDefaultMsec(noteSpeedValue);
+            var visualAudioOffsetMsec = TapBase.GetMaiBugAdjustMSec(noteSpeedValue);
+            isSoflanVisible = SoflanManager.Instance.IsNoteVisible(
+                timeProvider.AudioTime * 1000f,
+                time * 1000f,
+                soflanGroup,
+                visibleMsec,
+                visualAudioOffsetMsec);
+            if (!isSoflanVisible)
+            {
+                sr.forceRenderingOff = true;
+                return;
+            }
+
+            var soflanValue = SoflanManager.Instance.GetCurrentSoflanY(
+                timeProvider.AudioTime * 1000f,
+                soflanGroup,
+                visualAudioOffsetMsec);
+            timing = (soflanValue - soflanTime) / 1000f;
+        }
+        else
+        {
+            isSoflanVisible = true;
+        }
+
+        var distance = useSoflan
+            ? TapBase.GetSoflanTapDistance(timing, noteSpeedValue)
+            : TapBase.GetTapDistance(timing, noteSpeedValue);
+        var destScale = useSoflan
+            ? TapBase.GetSoflanTapScale(timing, noteSpeedValue)
+            : TapBase.GetTapScale(timing, noteSpeedValue);
 
         sr.forceRenderingOff = destScale <= 0.3f;
         if (destScale < 1f)

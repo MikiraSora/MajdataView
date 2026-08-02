@@ -181,7 +181,13 @@ public class StarDrop : TapBase
     private void Update_soflan()
     {
         var songSpeed = timeProvider.CurrentSpeed;
-        var timing = GetSoflanTiming();
+        if (!UpdateTapSoflanVisibility())
+        {
+            HideSoflanTapVisual();
+            return;
+        }
+
+        var timing = GetVisualSoflanTiming();
         var distance = GetSoflanTapDistance(timing);
         var destScale = GetSoflanTapScale(timing);
         var shouldActivateSlide = GetTapScale(GetJudgeTiming()) >= 1f;

@@ -32,6 +32,55 @@ internal class SoflanManager
     }
     private readonly Dictionary<int, YPreviewCacheEntry> _yPreviewCache = new();
 
+    private readonly struct VisibleRangeCacheKey : IEquatable<VisibleRangeCacheKey>
+    {
+        public VisibleRangeCacheKey(int soflanGroup, float visibleMsec, float visualAudioOffsetMsec)
+        {
+            SoflanGroup = soflanGroup;
+            VisibleMsec = visibleMsec;
+            VisualAudioOffsetMsec = visualAudioOffsetMsec;
+        }
+
+        private int SoflanGroup { get; }
+        private float VisibleMsec { get; }
+        private float VisualAudioOffsetMsec { get; }
+
+        public bool Equals(VisibleRangeCacheKey other)
+        {
+            return SoflanGroup == other.SoflanGroup
+                && VisibleMsec == other.VisibleMsec
+                && VisualAudioOffsetMsec == other.VisualAudioOffsetMsec;
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is VisibleRangeCacheKey other && Equals(other);
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                var hashCode = SoflanGroup;
+                hashCode = (hashCode * 397) ^ VisibleMsec.GetHashCode();
+                hashCode = (hashCode * 397) ^ VisualAudioOffsetMsec.GetHashCode();
+                return hashCode;
+            }
+        }
+    }
+
+    private sealed class VisibleRangeCache
+    {
+        public int Version;
+        public float CurrentSoflanY = float.NaN;
+        public readonly List<SoflanList.VisibleMsecRange> Ranges = new();
+        public readonly SoflanList.VisibleRangeQueryScratch Scratch = new();
+    }
+
+    private readonly Dictionary<VisibleRangeCacheKey, VisibleRangeCache> _visibleRangeCache = new();
+    private float _visibleRangeFrameMsec = float.NaN;
+    private int _visibleRangeCacheVersion = 1;
+
     private void log(string message)
     {
         //todo
@@ -48,6 +97,9 @@ internal class SoflanManager
 
         registerNoteIndexToSoflanGroupMap.Clear();
         _yPreviewCache.Clear();
+        _visibleRangeCache.Clear();
+        _visibleRangeFrameMsec = float.NaN;
+        _visibleRangeCacheVersion = 1;
 
         log("SoflanManager cleared");
     }
@@ -135,25 +187,87 @@ internal class SoflanManager
 
     //-------------------------------------------
 
-    private struct VisibleMsecRange
+    private static bool IsFinite(float value)
     {
-        public VisibleMsecRange(float minMSec, TGrid minTGrid, float maxMSec, TGrid maxTGrid)
+        return !float.IsNaN(value) && !float.IsInfinity(value);
+    }
+
+    private void BeginVisibleRangeFrame(float currentAudioMsec)
+    {
+        if (_visibleRangeFrameMsec == currentAudioMsec)
+            return;
+
+        _visibleRangeFrameMsec = currentAudioMsec;
+        if (_visibleRangeCacheVersion == int.MaxValue)
         {
-            MinMSec = minMSec;
-            MinTGrid = minTGrid;
-            MaxMSec = maxMSec;
-            MaxTGrid = maxTGrid;
+            _visibleRangeCache.Clear();
+            _visibleRangeCacheVersion = 1;
+        }
+        else
+        {
+            _visibleRangeCacheVersion++;
+        }
+    }
+
+    public float GetCurrentSoflanY(float currentAudioMsec, int soflanGroup, float visualAudioOffsetMsec)
+    {
+        var adjustedAudioMsec = IsFinite(currentAudioMsec) && IsFinite(visualAudioOffsetMsec)
+            ? currentAudioMsec + visualAudioOffsetMsec
+            : 0f;
+        if (!IsFinite(adjustedAudioMsec) || adjustedAudioMsec < 0f)
+            adjustedAudioMsec = 0f;
+
+        return ConvertAudioTimeToY_PreviewMode(adjustedAudioMsec, soflanGroup);
+    }
+
+    public bool IsNoteVisible(
+        float currentAudioMsec,
+        float noteAudioMsec,
+        int soflanGroup,
+        float visibleMsec,
+        float visualAudioOffsetMsec)
+    {
+        if (!containSoflans)
+            return true;
+        if (!IsFinite(currentAudioMsec)
+            || !IsFinite(noteAudioMsec)
+            || !IsFinite(visibleMsec)
+            || !IsFinite(visualAudioOffsetMsec)
+            || visibleMsec <= 0f)
+            return false;
+
+        BeginVisibleRangeFrame(currentAudioMsec);
+
+        var key = new VisibleRangeCacheKey(soflanGroup, visibleMsec, visualAudioOffsetMsec);
+        if (!_visibleRangeCache.TryGetValue(key, out var cache))
+        {
+            cache = new VisibleRangeCache();
+            _visibleRangeCache[key] = cache;
         }
 
-        public float MinMSec { get; }
-        public TGrid MinTGrid { get; }
-        public float MaxMSec { get; }
-        public TGrid MaxTGrid { get; }
-
-        public bool Contain(float msec)
+        var currentSoflanY = GetCurrentSoflanY(
+            currentAudioMsec,
+            soflanGroup,
+            visualAudioOffsetMsec);
+        if (cache.Version != _visibleRangeCacheVersion || cache.CurrentSoflanY != currentSoflanY)
         {
-            return MinMSec <= msec && msec <= MaxMSec;
+            getSoflanList(soflanGroup).FillVisibleMsecRangesForGamePreview(
+                currentSoflanY,
+                visibleMsec,
+                bpmList,
+                cache.Ranges,
+                cache.Scratch);
+            cache.Version = _visibleRangeCacheVersion;
+            cache.CurrentSoflanY = currentSoflanY;
         }
+
+        for (var i = 0; i < cache.Ranges.Count; i++)
+        {
+            if (cache.Ranges[i].Contain(noteAudioMsec))
+                return true;
+        }
+
+        return false;
     }
 
     public float ConvertAudioTimeToY_PreviewMode(float msec, int soflanGroup, float speed = 1)

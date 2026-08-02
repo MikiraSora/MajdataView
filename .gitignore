@@ -19,6 +19,7 @@ Logs/
 .consulo/
 *.csproj
 !Validation~/MajdataView.ForceYellowValidation.csproj
+!Validation~/SoflanVisibility/MajdataView.SoflanVisibilityValidation.csproj
 *.unityproj
 *.sln
 *.suo
@@ -56,3 +57,5 @@ UserSettings/Layouts/default-2022.dwlt
 # Standalone Force Yellow validation build outputs
 /Validation~/bin/
 /Validation~/obj/
+/Validation~/*/bin/
+/Validation~/*/obj/

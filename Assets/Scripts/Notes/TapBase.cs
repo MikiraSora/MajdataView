@@ -66,6 +66,30 @@ namespace Assets.Scripts.Notes
         {
             return IsFixedSoflanEnabled() ? fixedSoflanSpeed : noteSpeedValue;
         }
+        protected float GetSoflanVisibleMsec()
+        {
+            return 2f * GetDefaultMsec(GetSoflanNoteSpeedValue());
+        }
+        protected float GetSoflanVisualAudioOffsetMsec()
+        {
+            return GetMaiBugAdjustMSec(GetSoflanNoteSpeedValue());
+        }
+        protected float GetVisualSoflanTiming()
+        {
+            return GetSoflanTiming(GetSoflanVisualAudioOffsetMsec());
+        }
+        protected bool UpdateTapSoflanVisibility()
+        {
+            return UpdateSoflanVisibility(
+                GetSoflanVisibleMsec(),
+                GetSoflanVisualAudioOffsetMsec());
+        }
+        protected void HideSoflanTapVisual()
+        {
+            tapLine.SetActive(false);
+            spriteRenderer.forceRenderingOff = true;
+            exSpriteRender.forceRenderingOff = true;
+        }
         protected float GetMaiBugAdjustMSec()
         {
             return GetMaiBugAdjustMSec(noteSpeedValue);
@@ -120,11 +144,23 @@ namespace Assets.Scripts.Notes
         }
         protected float GetSoflanTapDistance(float timing)
         {
-            return GetTapDistance(timing, GetSoflanNoteSpeedValue());
+            return GetSoflanTapDistance(timing, GetSoflanNoteSpeedValue());
+        }
+        public static float GetSoflanTapDistance(float timing, float speedValue)
+        {
+            var moveStartTime = GetDefaultMsec(speedValue);
+            var progress = (moveStartTime + timing * 1000f) / (2f * moveStartTime);
+            var outsideDistance = 4.8f + (4.8f - 1.225f);
+            return Mathf.Lerp(1.225f, outsideDistance, progress);
         }
         protected float GetSoflanTapScale(float timing)
         {
-            return GetTapScale(timing, GetSoflanNoteSpeedValue());
+            return GetSoflanTapScale(timing, GetSoflanNoteSpeedValue());
+        }
+        public static float GetSoflanTapScale(float timing, float speedValue)
+        {
+            var defaultMsec = GetDefaultMsec(speedValue);
+            return (2f * defaultMsec - MathF.Abs(timing * 1000f)) / defaultMsec;
         }
         protected void FixedUpdate()
         {
@@ -228,8 +264,13 @@ namespace Assets.Scripts.Notes
         private void Update_soflan()
         {
             getJudgeTimingDisplay = GetJudgeTiming();
+            if (!UpdateTapSoflanVisibility())
+            {
+                HideSoflanTapVisual();
+                return;
+            }
 
-            var timing = getSoflanTimingDisplay = GetSoflanTiming();
+            var timing = getSoflanTimingDisplay = GetVisualSoflanTiming();
             var distance = distanceDisplay = GetSoflanTapDistance(timing);
             var destScale = GetSoflanTapScale(timing);
 

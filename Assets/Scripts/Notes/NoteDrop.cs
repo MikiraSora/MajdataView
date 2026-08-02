@@ -48,8 +48,24 @@ public class NoteDrop : MonoBehaviour
     // 变速相关
     public int soflanGroup;
     public float soflanTime;
+    public bool isSoflanVisible { get; private set; } = true;
     protected float GetSoflanValue(float inputMsec) => SoflanManager.Instance.ConvertAudioTimeToY_PreviewMode(inputMsec, soflanGroup, speed);
     protected float GetSoflanTiming() => (GetSoflanValue(timeProvider.AudioTime * 1000.0f) - soflanTime) / 1000.0f;
+    protected float GetSoflanTiming(float visualAudioOffsetMsec) =>
+        (SoflanManager.Instance.GetCurrentSoflanY(
+            timeProvider.AudioTime * 1000.0f,
+            soflanGroup,
+            visualAudioOffsetMsec) - soflanTime) / 1000.0f;
+    protected bool UpdateSoflanVisibility(float visibleMsec, float visualAudioOffsetMsec)
+    {
+        isSoflanVisible = SoflanManager.Instance.IsNoteVisible(
+            timeProvider.AudioTime * 1000.0f,
+            time * 1000.0f,
+            soflanGroup,
+            visibleMsec,
+            visualAudioOffsetMsec);
+        return isSoflanVisible;
+    }
     protected virtual bool IsEnableSoflan() => false;
 
     protected static void ApplyMineVisual(SpriteRenderer renderer)
