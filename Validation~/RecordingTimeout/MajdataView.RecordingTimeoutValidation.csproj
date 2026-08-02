@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\RecordingTimeoutProgram.cs" />
+    <Compile Include="..\..\Assets\Scripts\RecordingTimeoutPolicy.cs" Link="RecordingTimeoutPolicy.cs" />
+    <ProjectReference Include="..\..\Assets\Plugins\MajSimaiX\MajSimai.csproj" />
+  </ItemGroup>
+</Project>

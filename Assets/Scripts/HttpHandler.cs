@@ -110,8 +110,6 @@ public class HttpHandler : MonoBehaviour
                     loader.LoadJson(File.ReadAllText(data.jsonPath), data.startTime);
                     multTouchHandler.clearSlots();
 
-                    screenRecorder.CutoffTime = getChartLength();
-                    screenRecorder.CutoffTime += 10f;
                     screenRecorder.StartRecording(maidataPath);
 
                     bgManager.LoadBGFromPath(maidataPath, data.audioSpeed);
@@ -163,19 +161,5 @@ public class HttpHandler : MonoBehaviour
         }
 
         print("exit listen");
-    }
-
-    private float getChartLength()
-    {
-        var length = 0f;
-        foreach (var noteData in GameObject.Find("Notes").GetComponentsInChildren<NoteDrop>(true))
-        {
-            length = Math.Max(length, noteData.time);
-
-            var longData = noteData as NoteLongDrop;
-            if (longData != null) length = Math.Max(length, noteData.time + longData.LastFor);
-        }
-
-        return length;
     }
 }

@@ -20,6 +20,7 @@ Logs/
 *.csproj
 !Validation~/MajdataView.ForceYellowValidation.csproj
 !Validation~/SoflanVisibility/MajdataView.SoflanVisibilityValidation.csproj
+!Validation~/RecordingTimeout/MajdataView.RecordingTimeoutValidation.csproj
 *.unityproj
 *.sln
 *.suo

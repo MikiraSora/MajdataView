@@ -36,6 +36,7 @@ public class JsonDataLoader : MonoBehaviour
     public RuntimeAnimatorController HoldShine;
 
     public NoteLoaderStatus State { get; private set; } = NoteLoaderStatus.Idle;
+    public float? ChartEndTime { get; private set; }
     NoteManager noteManager;
     Task<Majson> jsonLoaderTask = null;
     Majson loadedData = null;
@@ -486,6 +487,7 @@ public class JsonDataLoader : MonoBehaviour
                 if (jsonLoaderTask is null || !jsonLoaderTask.IsCompleted)
                     return;
                 loadedData = jsonLoaderTask.Result;
+                ChartEndTime = RecordingTimeoutPolicy.CalculateChartEndTime(loadedData.timingList);
                 if (!TryValidateForceYellowData(loadedData.timingList))
                 {
                     State = NoteLoaderStatus.Finished;
@@ -846,6 +848,7 @@ public class JsonDataLoader : MonoBehaviour
 
     public void LoadJson(string json, float ignoreOffset)
     {
+        ChartEndTime = null;
         jsonLoaderTask = Task.Run(() => JsonConvert.DeserializeObject<Majson>(json));
         State = NoteLoaderStatus.LodingJson;
         this.ignoreOffset = ignoreOffset;
