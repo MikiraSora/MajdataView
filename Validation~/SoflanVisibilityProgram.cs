@@ -11,6 +11,7 @@ var tests = new (string Name, Action Body)[]
     ("Thunderstorm Road group 4 becomes visible at the game boundary", ThunderstormRoadVisibleTime),
     ("MaiBug is applied before Soflan integration", MaiBugAppliedBeforeSoflanIntegration),
     ("ordinary positive speed keeps the standard visible window", OrdinaryPositiveSpeed),
+    ("single initial keyframe preserves its declared speed", SingleInitialKeyframePreservesDeclaredSpeed),
     ("runtime visibility wiring covers Tap Star and EachLine", RuntimeVisibilityWiring)
 };
 
@@ -79,6 +80,38 @@ static void OrdinaryPositiveSpeed()
 
     Expect(IsVisible(fixture, noteMsec - 500f, noteMsec, 900f), "near positive-speed note should be visible");
     Expect(!IsVisible(fixture, noteMsec - 600f, noteMsec, 900f), "distant positive-speed note should be blocked");
+}
+
+static void SingleInitialKeyframePreservesDeclaredSpeed()
+{
+    var bpmList = new BpmList { FirstBpm = 150f };
+    var normalY = TGridCalculator.ConvertAudioTimeToY_PreviewMode(
+        TimeSpan.FromSeconds(1),
+        new SoflanList(),
+        bpmList,
+        1d);
+
+    foreach (var declaredSpeed in new[] { 0.5f, 0f, -1f, 100001f })
+    {
+        var soflanList = new SoflanList();
+        soflanList.Add(new KeyframeSoflan
+        {
+            TGrid = TGrid.Zero,
+            Speed = declaredSpeed,
+            SoflanGroup = 3
+        });
+
+        var points = soflanList.GetCachedSoflanPositionList_PreviewMode(bpmList);
+        Expect(points.Count == 1, $"speed {declaredSpeed} generated {points.Count} cached points");
+        ExpectNearlyEqual(points[0].Speed, declaredSpeed, $"cached speed {declaredSpeed}");
+
+        var actualY = TGridCalculator.ConvertAudioTimeToY_PreviewMode(
+            TimeSpan.FromSeconds(1),
+            soflanList,
+            bpmList,
+            1d);
+        ExpectNearlyEqual(actualY, normalY * declaredSpeed, $"preview Y at speed {declaredSpeed}");
+    }
 }
 
 static void RuntimeVisibilityWiring()
@@ -249,6 +282,12 @@ static void Expect(bool condition, string message)
 {
     if (!condition)
         throw new InvalidOperationException(message);
+}
+
+static void ExpectNearlyEqual(double actual, double expected, string message)
+{
+    var tolerance = Math.Max(1e-9, Math.Abs(expected) * 1e-9);
+    Expect(Math.Abs(actual - expected) <= tolerance, $"{message}: expected {expected}, actual {actual}");
 }
 
 internal sealed record RuntimeSoflanData(BpmList BpmList, SoflanListMap SoflanLists);
