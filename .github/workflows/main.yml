@@ -33,7 +33,9 @@ jobs:
       # com.ivanmurzak.unity.mcp is an editor-only AI assistant tool whose
       # NuGet dependency bootstrapper breaks cold CI builds (sets
       # UNITY_MCP_READY before its DLLs are downloaded). Strip it from the
-      # CI checkout only; local development is unaffected.
+      # CI checkout only; local development is unaffected. The change is
+      # committed in-CI because unity-builder's semantic versioning refuses
+      # to run on a dirty worktree; the commit never leaves the runner.
       - name: Remove editor-only MCP package for CI build
         shell: bash
         run: |
@@ -48,6 +50,10 @@ jobs:
               json.dump(manifest, manifest_file, indent=2)
               manifest_file.write("\n")
           PY
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add Packages/manifest.json
+          git commit -q -m "ci: strip editor-only MCP package for this build"
 
       - name: Cache Unity Library
         uses: actions/cache@v4
@@ -92,7 +98,8 @@ jobs:
           lfs: true
           submodules: recursive
 
-      # See build-unity for why this editor-only package is stripped in CI.
+      # See build-unity for why this editor-only package is stripped in CI
+      # and why the change is committed in-CI.
       - name: Remove editor-only MCP package for CI build
         shell: bash
         run: |
@@ -107,6 +114,10 @@ jobs:
               json.dump(manifest, manifest_file, indent=2)
               manifest_file.write("\n")
           PY
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add Packages/manifest.json
+          git commit -q -m "ci: strip editor-only MCP package for this build"
 
       - name: Cache Unity Library
         uses: actions/cache@v4
