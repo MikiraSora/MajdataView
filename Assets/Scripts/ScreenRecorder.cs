@@ -56,6 +56,23 @@ public class ScreenRecorder : MonoBehaviour
 
     public void StartRecording(string maidata_path)
     {
+        if (Application.platform != RuntimePlatform.WindowsPlayer &&
+            Application.platform != RuntimePlatform.WindowsEditor)
+        {
+            const string unsupportedMessage =
+                "录制功能目前仅支持 Windows 平台，已忽略本次录制请求。\n" +
+                "Recording is currently only supported on Windows; the request was ignored.";
+            UnityEngine.Debug.LogWarning(unsupportedMessage);
+            var errObject = GameObject.Find("ErrText");
+            if (errObject != null)
+            {
+                var errText = errObject.GetComponent<Text>();
+                if (errText != null)
+                    errText.text += unsupportedMessage + "\n";
+            }
+            return;
+        }
+
         CutoffTime = 0f;
         cutoffInitialized = false;
         recordingTimedOut = false;
