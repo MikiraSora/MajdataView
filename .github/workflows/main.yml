@@ -30,6 +30,25 @@ jobs:
           lfs: true
           submodules: recursive
 
+      # com.ivanmurzak.unity.mcp is an editor-only AI assistant tool whose
+      # NuGet dependency bootstrapper breaks cold CI builds (sets
+      # UNITY_MCP_READY before its DLLs are downloaded). Strip it from the
+      # CI checkout only; local development is unaffected.
+      - name: Remove editor-only MCP package for CI build
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+
+          path = "Packages/manifest.json"
+          with open(path, encoding="utf-8") as manifest_file:
+              manifest = json.load(manifest_file)
+          manifest.get("dependencies", {}).pop("com.ivanmurzak.unity.mcp", None)
+          with open(path, "w", encoding="utf-8") as manifest_file:
+              json.dump(manifest, manifest_file, indent=2)
+              manifest_file.write("\n")
+          PY
+
       - name: Cache Unity Library
         uses: actions/cache@v4
         with:
@@ -72,6 +91,22 @@ jobs:
           fetch-depth: 0
           lfs: true
           submodules: recursive
+
+      # See build-unity for why this editor-only package is stripped in CI.
+      - name: Remove editor-only MCP package for CI build
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+
+          path = "Packages/manifest.json"
+          with open(path, encoding="utf-8") as manifest_file:
+              manifest = json.load(manifest_file)
+          manifest.get("dependencies", {}).pop("com.ivanmurzak.unity.mcp", None)
+          with open(path, "w", encoding="utf-8") as manifest_file:
+              json.dump(manifest, manifest_file, indent=2)
+              manifest_file.write("\n")
+          PY
 
       - name: Cache Unity Library
         uses: actions/cache@v4
