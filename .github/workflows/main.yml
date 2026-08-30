@@ -60,6 +60,49 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  build-unity-macos:
+    name: Build MajdataView macOS
+    needs: build-unity
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout MajdataView
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+          submodules: recursive
+
+      - name: Cache Unity Library
+        uses: actions/cache@v4
+        with:
+          path: Library
+          key: Library-StandaloneOSX-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          restore-keys: |
+            Library-StandaloneOSX-
+            Library-
+
+      - name: Build MajdataView macOS player
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          unityVersion: auto
+          targetPlatform: StandaloneOSX
+          versioning: Semantic
+          buildName: MajdataView
+          buildsPath: build
+
+      - name: Upload MajdataView build
+        uses: actions/upload-artifact@v4
+        with:
+          name: MajdataView-StandaloneOSX
+          path: build/StandaloneOSX
+          if-no-files-found: error
+          retention-days: 14
+
   build-editor:
     name: Build MajdataEdit Windows x64
     runs-on: windows-latest
@@ -109,6 +152,7 @@ jobs:
     if: github.event_name == 'repository_dispatch' || github.ref_name == github.event.repository.default_branch
     needs:
       - build-unity
+      - build-unity-macos
       - build-editor
     runs-on: ubuntu-latest
 
@@ -130,7 +174,13 @@ jobs:
           name: MajdataEdit-win-x64
           path: package
 
-      - name: Extract SFX and Skin assets into package root
+      - name: Download MajdataView macOS build into package root
+        uses: actions/download-artifact@v4
+        with:
+          name: MajdataView-StandaloneOSX
+          path: package-mac
+
+      - name: Extract SFX and Skin assets into package roots
         shell: bash
         run: |
           python3 <<'PY'
@@ -139,7 +189,7 @@ jobs:
           import shutil
 
           source = Path("SFXSKIN.zip")
-          package_dir = Path("package")
+          package_dirs = [Path("package"), Path("package-mac")]
           required_roots = {"SFX", "Skin"}
 
           if not source.is_file():
@@ -167,10 +217,11 @@ jobs:
                   if entry_path.parts[0] not in required_roots:
                       continue
 
-                  target = package_dir.joinpath(*entry_path.parts)
-                  target.parent.mkdir(parents=True, exist_ok=True)
-                  with archive.open(entry) as src, target.open("wb") as dst:
-                      shutil.copyfileobj(src, dst)
+                  for package_dir in package_dirs:
+                      target = package_dir.joinpath(*entry_path.parts)
+                      target.parent.mkdir(parents=True, exist_ok=True)
+                      with archive.open(entry) as src, target.open("wb") as dst:
+                          shutil.copyfileobj(src, dst)
           PY
 
       - name: Build download page
@@ -185,6 +236,7 @@ jobs:
 
           root = Path.cwd()
           package_dir = root / "package"
+          package_mac_dir = root / "package-mac"
           site_dir = root / "site"
           downloads_dir = site_dir / "downloads"
           downloads_dir.mkdir(parents=True, exist_ok=True)
@@ -211,6 +263,17 @@ jobs:
                   if file_path.is_file():
                       archive.write(file_path, file_path.relative_to(package_dir))
 
+          mac_zip_name = (
+              f"MajdataView_macOS_{safe_ref_name}_"
+              f"(GABuild{ga_build_time}_{commit_sha[:6]}_{build_configuration}).zip"
+          )
+          mac_zip_path = downloads_dir / mac_zip_name
+
+          with ZipFile(mac_zip_path, "w", ZIP_DEFLATED) as archive:
+              for file_path in sorted(package_mac_dir.rglob("*")):
+                  if file_path.is_file():
+                      archive.write(file_path, file_path.relative_to(package_mac_dir))
+
           repo = os.environ["GITHUB_REPOSITORY"]
           repo_url = f"https://github.com/{repo}"
           commit_url = f"{repo_url}/commit/{commit_sha}"
@@ -220,7 +283,7 @@ jobs:
           <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1">
-            <meta name="description" content="MajdataView 与 MajdataEdit Windows x64 自动构建下载及谱面资源。">
+            <meta name="description" content="MajdataView 与 MajdataEdit Windows x64 / macOS 自动构建下载及谱面资源。">
             <title>MajdataEditView 下载</title>
             <style>
               :root {{
@@ -410,14 +473,14 @@ jobs:
           </head>
           <body>
             <main>
-              <span class="eyebrow">Windows x64 · 自动构建</span>
+              <span class="eyebrow">Windows x64 · macOS · 自动构建</span>
               <h1>MajdataEditView 下载</h1>
-              <p class="intro">MajdataView 与 MajdataEdit 的 Windows x64 合并包，包含运行所需的 SFX 与 Skin 资源。</p>
+              <p class="intro">MajdataView 与 MajdataEdit 的自动构建包，包含运行所需的 SFX 与 Skin 资源。</p>
 
               <section class="download-panel" aria-labelledby="download-title">
                 <div>
-                  <h2 id="download-title">最新构建</h2>
-                  <p>由 GitHub Actions 自动打包，可直接下载使用。</p>
+                  <h2 id="download-title">Windows x64 最新构建</h2>
+                  <p>MajdataView 与 MajdataEdit 的 Windows x64 合并包，由 GitHub Actions 自动打包。</p>
                   <dl class="metadata">
                     <div>
                       <dt>仓库 / 分支</dt>
@@ -438,6 +501,32 @@ jobs:
                   </dl>
                 </div>
                 <a class="button" href="downloads/{escape(zip_name)}" download>下载 ZIP</a>
+              </section>
+
+              <section class="download-panel" aria-labelledby="download-mac-title">
+                <div>
+                  <h2 id="download-mac-title">macOS 最新构建</h2>
+                  <p>MajdataView 的 macOS 独立包（不含 MajdataEdit，MajdataEdit 仅支持 Windows）。</p>
+                  <dl class="metadata">
+                    <div>
+                      <dt>仓库 / 分支</dt>
+                      <dd><a href="{escape(repo_url)}">{escape(repo)}</a> / {escape(ref_name)}</dd>
+                    </div>
+                    <div>
+                      <dt>Commit</dt>
+                      <dd><a href="{escape(commit_url)}">{escape(commit_sha[:12])}</a></dd>
+                    </div>
+                    <div>
+                      <dt>构建时间（北京时间 UTC+8）</dt>
+                      <dd>{escape(build_time)}</dd>
+                    </div>
+                    <div>
+                      <dt>目标平台</dt>
+                      <dd>macOS（StandaloneOSX）</dd>
+                    </div>
+                  </dl>
+                </div>
+                <a class="button" href="downloads/{escape(mac_zip_name)}" download>下载 ZIP</a>
               </section>
 
               <section class="resources" aria-labelledby="resources-title">
