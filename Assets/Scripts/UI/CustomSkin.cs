@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using UnityEngine;
 
 public class CustomSkin : MonoBehaviour
@@ -55,7 +55,12 @@ public class CustomSkin : MonoBehaviour
     // Start is called before the first frame update
     private void Start()
     {
-        var path = new DirectoryInfo(Application.dataPath).Parent.FullName + "/Skin/";
+        // On macOS the .app bundle is sealed at build time, so skins ship in
+        // StreamingAssets (see the macOS CI job). Other platforms read the
+        // Skin folder next to the executable / project root.
+        var path = Application.platform == RuntimePlatform.OSXPlayer
+            ? Application.streamingAssetsPath + "/Skin/"
+            : new DirectoryInfo(Application.dataPath).Parent.FullName + "/Skin/";
         Outline = gameObject.GetComponent<SpriteRenderer>();
         print(path);
 

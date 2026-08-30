@@ -119,6 +119,44 @@ jobs:
           git add Packages/manifest.json
           git commit -q -m "ci: strip editor-only MCP package for this build"
 
+      # Ship skins inside the macOS bundle via StreamingAssets so they are
+      # sealed by the build-time signature (CustomSkin.cs reads them from
+      # Application.streamingAssetsPath on OSXPlayer). Committed in-CI to
+      # keep the worktree clean for semantic versioning.
+      - name: Stage Skin assets into StreamingAssets
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path, PurePosixPath
+          from zipfile import ZipFile
+          import shutil
+
+          source = Path("SFXSKIN.zip")
+          target_root = Path("Assets/StreamingAssets")
+
+          if not source.is_file():
+              raise FileNotFoundError(f"Missing required asset archive: {source}")
+
+          with ZipFile(source) as archive:
+              for entry in archive.infolist():
+                  entry_name = entry.filename.replace("\\", "/")
+                  entry_path = PurePosixPath(entry_name)
+
+                  if entry.is_dir() or not entry_path.parts:
+                      continue
+                  if entry_path.is_absolute() or ".." in entry_path.parts:
+                      raise RuntimeError(f"Unsafe path in {source}: {entry.filename}")
+                  if entry_path.parts[0] != "Skin":
+                      continue
+
+                  target = target_root.joinpath(*entry_path.parts)
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  with archive.open(entry) as src, target.open("wb") as dst:
+                      shutil.copyfileobj(src, dst)
+          PY
+          git add Assets/StreamingAssets/Skin
+          git commit -q -m "ci: stage skins into StreamingAssets for this build"
+
       - name: Cache Unity Library
         uses: actions/cache@v4
         with:
@@ -226,7 +264,9 @@ jobs:
           name: MajdataView-StandaloneOSX
           path: package-mac
 
-      - name: Extract SFX and Skin assets into package roots
+      # The macOS package needs no extra assets: skins are baked into the
+      # .app via StreamingAssets at build time (see build-unity-macos).
+      - name: Extract SFX and Skin assets into package root
         shell: bash
         run: |
           python3 <<'PY'
@@ -235,7 +275,7 @@ jobs:
           import shutil
 
           source = Path("SFXSKIN.zip")
-          package_dirs = [Path("package"), Path("package-mac")]
+          package_dirs = [Path("package")]
           required_roots = {"SFX", "Skin"}
 
           if not source.is_file():
@@ -277,7 +317,7 @@ jobs:
           from datetime import datetime, timedelta, timezone
           from html import escape
           from pathlib import Path
-          from zipfile import ZIP_DEFLATED, ZipFile
+          from zipfile import ZIP_DEFLATED, ZipFile, ZipInfo
           import os
 
           root = Path.cwd()
@@ -315,10 +355,21 @@ jobs:
           )
           mac_zip_path = downloads_dir / mac_zip_name
 
+          # Preserve executable bits in the zip: without them the extracted
+          # .app cannot be opened by double-click. download-artifact does not
+          # reliably restore modes, so force 0755 for bundle executables.
           with ZipFile(mac_zip_path, "w", ZIP_DEFLATED) as archive:
               for file_path in sorted(package_mac_dir.rglob("*")):
-                  if file_path.is_file():
-                      archive.write(file_path, file_path.relative_to(package_mac_dir))
+                  if not file_path.is_file():
+                      continue
+                  arcname = str(file_path.relative_to(package_mac_dir))
+                  info = ZipInfo.from_file(file_path, arcname)
+                  mode = file_path.stat().st_mode
+                  if "/Contents/MacOS/" in arcname:
+                      mode |= 0o755
+                  info.external_attr = (mode & 0xFFFF) << 16
+                  with open(file_path, "rb") as source_file:
+                      archive.writestr(info, source_file.read(), ZIP_DEFLATED)
 
           repo = os.environ["GITHUB_REPOSITORY"]
           repo_url = f"https://github.com/{repo}"
@@ -552,7 +603,7 @@ jobs:
               <section class="download-panel" aria-labelledby="download-mac-title">
                 <div>
                   <h2 id="download-mac-title">macOS 最新构建</h2>
-                  <p>MajdataView 的 macOS 独立包（不含 MajdataEdit，MajdataEdit 仅支持 Windows）。</p>
+                  <p>MajdataView 的 macOS 独立包（不含 MajdataEdit，MajdataEdit 仅支持 Windows），Skin 已内置于 MajdataView.app 内。首次打开请右键点击 App 选择「打开」。</p>
                   <dl class="metadata">
                     <div>
                       <dt>仓库 / 分支</dt>
